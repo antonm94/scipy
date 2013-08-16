@@ -102,7 +102,7 @@ class TestOptimize(object):
                                     options=opts)
 
             params, fopt, gopt, Hopt, func_calls, grad_calls, warnflag = \
-                    res['x'], res['fun'], res['jac'], res['hess'], \
+                    res['x'], res['fun'], res['jac'], res['hess_inv'], \
                     res['nfev'], res['njev'], res['status']
         else:
             retval = optimize.fmin_bfgs(self.func, self.startparams, self.grad,
@@ -263,7 +263,7 @@ class TestOptimize(object):
         # Ensure that function call counts are 'known good'; these are from
         # Scipy 0.7.0. Don't allow them to increase.
         assert_(self.funccalls == 7, self.funccalls)
-        assert_(self.gradcalls <= 20, self.gradcalls)  # 0.13.0
+        assert_(self.gradcalls <= 22, self.gradcalls)  # 0.13.0
         #assert_(self.gradcalls <= 18, self.gradcalls) # 0.9.0
         #assert_(self.gradcalls == 18, self.gradcalls) # 0.8.0
         #assert_(self.gradcalls == 22, self.gradcalls) # 0.7.0

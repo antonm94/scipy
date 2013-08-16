@@ -27,22 +27,29 @@ def configuration(parent_package='',top_path=None):
     if needs_g77_abi_wrapper(lapack_opt):
         sources = ['fblas.pyf.src', join('src', 'fblaswrap_veclib_c.c')],
     else:
-        sources = ['fblas.pyf.src', join('src', 'fblaswrap.f')]
+        sources = ['fblas.pyf.src', join('src', 'fblaswrap_dummy.f')]
 
     # Note: `depends` needs to include fblaswrap(_veclib) for both files to be
     # included by "python setup.py sdist"
     config.add_extension('_fblas',
                          sources=sources,
                          depends=['fblas_l?.pyf.src',
-                                    join('src', 'fblaswrap_veclib_c.c'),
-                                    join('src', 'fblaswrap.f')],
+                                  join('src', 'fblaswrap_veclib_c.c'),
+                                  join('src', 'fblaswrap_dummy.f')],
                          extra_info=lapack_opt
                          )
 
     # flapack:
+    if needs_g77_abi_wrapper(lapack_opt):
+        sources = ['flapack.pyf.src', join('src', 'flapackwrap_veclib.f')],
+    else:
+        sources = ['flapack.pyf.src', join('src', 'flapackwrap_dummy.f')]
+
     config.add_extension('_flapack',
-                         sources=['flapack.pyf.src'],
-                         depends=['flapack_user.pyf.src'],
+                         sources=sources,
+                         depends=['flapack_user.pyf.src',
+                                  join('src', 'flapackwrap_veclib.f'),
+                                  join('src', 'flapackwrap_dummy.f')],
                          extra_info=lapack_opt
                          )
 
@@ -71,6 +78,21 @@ def configuration(parent_package='',top_path=None):
     config.add_extension('calc_lwork',
                          [join('src','calc_lwork.f')],
                          extra_info=lapack_opt
+                         )
+
+    # _interpolative:
+    config.add_extension('_interpolative',
+                         [join('src', 'id_dist', 'src', fn) for fn in 
+                             ['dfft.f', 'idd_frm.f', 'idd_house.f', 'idd_id2svd.f', 'idd_id.f',
+                                 'iddp_aid.f', 'iddp_asvd.f', 'iddp_rid.f', 'iddp_rsvd.f', 'idd_qrpiv.f',
+                                 'iddr_aid.f', 'iddr_asvd.f', 'iddr_rid.f', 'iddr_rsvd.f', 'idd_sfft.f',
+                                 'idd_snorm.f', 'idd_svd.f', 'id_rand.f', 'id_rtrans.f', 'idz_frm.f',
+                                 'idz_house.f', 'idz_id2svd.f', 'idz_id.f', 'idzp_aid.f', 'idzp_asvd.f',
+                                 'idzp_rid.f', 'idzp_rsvd.f', 'idz_qrpiv.f', 'idzr_aid.f', 'idzr_asvd.f',
+                                 'idzr_rid.f', 'idzr_rsvd.f', 'idz_sfft.f', 'idz_snorm.f', 'idz_svd.f',
+                                 ]
+                             ] + ["interpolative.pyf"],
+                         extra_info = lapack_opt
                          )
 
     config.add_data_dir('tests')

@@ -67,12 +67,18 @@ Decompositions
    cho_factor - Cholesky decomposition for use in solving a linear system
    cho_solve - Solve previously factored linear system
    cho_solve_banded - Solve previously factored banded linear system
+   polar - Compute the polar decomposition.
    qr - QR decomposition of a matrix
    qr_multiply - QR decomposition and multiplication by Q
    qz - QZ decomposition of a pair of matrices
    schur - Schur decomposition of a matrix
    rsf2csf - Real to complex Schur form
    hessenberg - Hessenberg form of a matrix
+
+.. seealso::
+
+   `scipy.linalg.interpolative` -- Interpolative matrix decompositions
+
 
 Matrix Functions
 ================
@@ -137,8 +143,12 @@ Low-level routines
    get_blas_funcs
    get_lapack_funcs
    find_best_blas_type
-   scipy.linalg.blas
-   scipy.linalg.lapack
+
+.. seealso::
+
+   `scipy.linalg.blas` -- Low-level BLAS functions
+
+   `scipy.linalg.lapack` -- Low-level LAPACK functions
 
 """
 
@@ -155,6 +165,7 @@ from .decomp_qr import *
 from ._decomp_qz import *
 from .decomp_svd import *
 from .decomp_schur import *
+from ._decomp_polar import *
 from .matfuncs import *
 from .blas import *
 from .lapack import *

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: latin-1 -*-
 ''' Nose test generators
 
 Need function load / save / roundtrip tests
@@ -12,11 +13,7 @@ from os.path import join as pjoin, dirname
 from glob import glob
 from io import BytesIO
 from tempfile import mkdtemp
-# functools is only available in Python >=2.5
-try:
-    from functools import partial
-except ImportError:
-    from scipy.io.arff.myfunctools import partial
+from functools import partial
 
 from scipy.lib.six import u, text_type, string_types
 
@@ -1071,6 +1068,27 @@ def test_load_mat4_le():
     mat4_fname = pjoin(test_data_path, 'test_mat4_le_floats.mat')
     vars = loadmat(mat4_fname)
     assert_array_equal(vars['a'], [[0.1, 1.2]])
+
+
+def test_unicode_mat4():
+    # Mat4 should save unicode as latin1
+    bio = BytesIO()
+    var = {'second_cat': u('Schrödinger')}
+    savemat(bio, var, format='4')
+    var_back = loadmat(bio)
+    assert_equal(var_back['second_cat'], var['second_cat'])
+
+
+def test_empty_sparse():
+    # Can we read empty sparse matrices?
+    sio = BytesIO()
+    import scipy.sparse
+    empty_sparse = scipy.sparse.csr_matrix([[0,0],[0,0]])
+    savemat(sio, dict(x = empty_sparse))
+    sio.seek(0)
+    res = loadmat(sio)
+    assert_array_equal(res['x'].shape, empty_sparse.shape)
+    assert_array_equal(res['x'].todense(), 0)
 
 
 if __name__ == "__main__":

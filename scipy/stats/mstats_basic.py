@@ -57,6 +57,7 @@ import scipy.misc as misc
 # import scipy.stats.futil as futil
 from . import futil
 
+
 genmissingvaldoc = """
 Notes
 -----
@@ -282,14 +283,18 @@ hmean.__doc__ = stats.hmean.__doc__
 
 
 def mode(a, axis=0):
+    a, axis = _chk_asarray(a, axis)
     def _mode1D(a):
         (rep,cnt) = find_repeats(a)
         if not cnt.ndim:
             return (0, 0)
         elif cnt.size:
             return (rep[cnt.argmax()], cnt.max())
-        return (a[0], 1)
-    #
+        else:
+            not_masked_indices = ma.flatnotmasked_edges(a)
+            first_not_masked_index = not_masked_indices[0]
+            return (a[first_not_masked_index], 1)
+
     if axis is None:
         output = _mode1D(ma.ravel(a))
         output = (ma.array(output[0]), ma.array(output[1]))
@@ -328,7 +333,8 @@ def msign(x):
 
 
 def pearsonr(x,y):
-    """Calculates a Pearson correlation coefficient and the p-value for testing
+    """
+    Calculates a Pearson correlation coefficient and the p-value for testing
     non-correlation.
 
     The Pearson correlation coefficient measures the linear relationship
@@ -336,8 +342,8 @@ def pearsonr(x,y):
     that each dataset be normally distributed. Like other correlation
     coefficients, this one varies between -1 and +1 with 0 implying no
     correlation. Correlations of -1 or +1 imply an exact linear
-    relationship. Positive correlations imply that as x increases, so does
-    y. Negative correlations imply that as x increases, y decreases.
+    relationship. Positive correlations imply that as `x` increases, so does
+    `y`. Negative correlations imply that as `x` increases, `y` decreases.
 
     The p-value roughly indicates the probability of an uncorrelated system
     producing datasets that have a Pearson correlation at least as extreme
@@ -346,17 +352,20 @@ def pearsonr(x,y):
 
     Parameters
     ----------
-    x : 1D array
-    y : 1D array the same length as x
+    x : 1-D array_like
+        Input
+    y : 1-D array_like
+        Input
 
     Returns
     -------
-    (Pearson's correlation coefficient,
-     2-tailed p-value)
+    pearsonr : float
+        Pearson's correlation coefficient, 2-tailed p-value.
 
     References
     ----------
     http://www.statsoft.com/textbook/glosp.html#Pearson%20Correlation
+
     """
     (x, y, n) = _chk_size(x, y)
     (x, y) = (x.ravel(), y.ravel())
@@ -388,7 +397,8 @@ def pearsonr(x,y):
 
 
 def spearmanr(x, y, use_ties=True):
-    """Calculates a Spearman rank-order correlation coefficient and the p-value
+    """
+    Calculates a Spearman rank-order correlation coefficient and the p-value
     to test for non-correlation.
 
     The Spearman correlation is a nonparametric measure of the linear
@@ -397,33 +407,35 @@ def spearmanr(x, y, use_ties=True):
     distributed. Like other correlation coefficients, this one varies
     between -1 and +1 with 0 implying no correlation. Correlations of -1 or
     +1 imply an exact linear relationship. Positive correlations imply that
-    as x increases, so does y. Negative correlations imply that as x
-    increases, y decreases.
+    as `x` increases, so does `y`. Negative correlations imply that as `x`
+    increases, `y` decreases.
 
-    Missing values are discarded pair-wise: if a value is missing in x, the
-    corresponding value in y is masked.
+    Missing values are discarded pair-wise: if a value is missing in `x`, the
+    corresponding value in `y` is masked.
 
     The p-value roughly indicates the probability of an uncorrelated system
     producing datasets that have a Spearman correlation at least as extreme
     as the one computed from these datasets. The p-values are not entirely
     reliable but are probably reasonable for datasets larger than 500 or so.
 
-Parameters
-----------
-    x : 1D array
-    y : 1D array the same length as x
-        The lengths of both arrays must be > 2.
-    use_ties : {True, False}, optional
+    Parameters
+    ----------
+    x : array_like
+        The length of `x` must be > 2.
+    y : array_like
+        The length of `y` must be > 2.
+    use_ties : bool, optional
         Whether the correction for ties should be computed.
 
-Returns
--------
-    (Spearman correlation coefficient,
-     2-tailed p-value)
+    Returns
+    -------
+    spearmanr : float
+        Spearman correlation coefficient, 2-tailed p-value.
 
     References
     ----------
     [CRCProbStat2000] section 14.7
+
     """
     (x, y, n) = _chk_size(x, y)
     (x, y) = (x.ravel(), y.ravel())
@@ -541,13 +553,14 @@ def kendalltau(x, y, use_ties=True, use_missing=False):
 
 
 def kendalltau_seasonal(x):
-    """Computes a multivariate extension Kendall's rank correlation tau, designed
-    for seasonal data.
+    """
+    Computes a multivariate Kendall's rank correlation tau, for seasonal data.
 
-Parameters
-----------
-    x: 2D array
+    Parameters
+    ----------
+    x : 2-D ndarray
         Array of seasonal data, with seasons in columns.
+
     """
     x = ma.array(x, subok=True, copy=False, ndmin=2)
     (n,m) = x.shape
@@ -676,28 +689,28 @@ if stats.linregress.__doc__:
 
 
 def theilslopes(y, x=None, alpha=0.05):
-    """Computes the Theil slope over the dataset (x,y), as the median of all slopes
-    between paired values.
+    """
+    Computes the Theil slope as the median of all slopes between paired values.
 
     Parameters
     ----------
-        y : sequence
-            Dependent variable.
-        x : {None, sequence}, optional
-            Independent variable. If None, use arange(len(y)) instead.
-        alpha : float
-            Confidence degree.
+    y : array_like
+        Dependent variable.
+    x : {None, array_like}, optional
+        Independent variable. If None, use arange(len(y)) instead.
+    alpha : float
+        Confidence degree.
 
     Returns
     -------
-        medslope : float
-            Theil slope
-        medintercept : float
-            Intercept of the Theil line, as median(y)-medslope*median(x)
-        lo_slope : float
-            Lower bound of the confidence interval on medslope
-        up_slope : float
-            Upper bound of the confidence interval on medslope
+    medslope : float
+        Theil slope
+    medintercept : float
+        Intercept of the Theil line, as median(y)-medslope*median(x)
+    lo_slope : float
+        Lower bound of the confidence interval on medslope
+    up_slope : float
+        Upper bound of the confidence interval on medslope
 
     """
     y = ma.asarray(y).flatten()
@@ -797,159 +810,11 @@ def ttest_rel(a,b,axis=None):
 ttest_rel.__doc__ = stats.ttest_rel.__doc__
 
 
-def chisquare(f_obs, f_exp=None, ddof=0, axis=0):
-    """
-    Calculates a one-way chi square test.
-
-    The chi square test tests the null hypothesis that the categorical data
-    has the given frequencies.
-
-    Parameters
-    ----------
-    f_obs : array
-        Observed frequencies in each category.
-    f_exp : array, optional
-        Expected frequencies in each category.  By default the categories are
-        assumed to be equally likely.
-    ddof : int, optional
-        "Delta degrees of freedom": adjustment to the degrees of freedom
-        for the p-value.  The p-value is computed using a chi-squared
-        distribution with ``k - 1 - ddof`` degrees of freedom, where `k`
-        is the number of observed frequencies.  The default value of `ddof`
-        is 0.
-    axis : int or None, optional
-        The axis of the broadcast result of `f_obs` and `f_exp` along which to
-        apply the test.  If axis is None, all values in `f_obs` are treated
-        as a single data set.  Default is 0.
-
-    Returns
-    -------
-    chisq : float or np.ma.masked_array
-        The chisquare test statistic.  The value is a float if `axis` is
-        None or `f_obs` and `f_exp` are 1-D.
-    p : float or np.ma.masked_array
-        The p-value of the test.  The value is a float if `ddof` and the
-        return value `chisq` are scalars.
-
-    Notes
-    -----
-    This test is invalid when the observed or expected frequencies in each
-    category are too small.  A typical rule is that all of the observed
-    and expected frequencies should be at least 5.
-    The default degrees of freedom, k-1, are for the case when no parameters
-    of the distribution are estimated. If p parameters are estimated by
-    efficient maximum likelihood then the correct degrees of freedom are
-    k-1-p. If the parameters are estimated in a different way, then the
-    dof can be between k-1-p and k-1. However, it is also possible that
-    the asymptotic distribution is not a chisquare, in which case this
-    test is not appropriate.
-
-    References
-    ----------
-    .. [1] Lowry, Richard.  "Concepts and Applications of Inferential
-           Statistics". Chapter 8. http://faculty.vassar.edu/lowry/ch8pt1.html
-
-    Examples
-    --------
-    When just `f_obs` is given, it is assumed that the expected frequencies
-    are uniform and given by the mean of the observed frequencies.
-
-    >>> chisquare([16, 18, 16, 14, 12, 12])
-    (2.0, 0.84914503608460956)
-
-    With `f_exp` the expected frequencies can be given.
-
-    >>> chisquare([16, 18, 16, 14, 12, 12], f_exp=[16, 16, 16, 16, 16, 8])
-    (3.5, 0.62338762774958223)
-
-    When `f_obs` is 2-D, by default the test is applied to each column.
-
-    >>> obs = np.array([[16, 18, 16, 14, 12, 12], [32, 24, 16, 28, 20, 24]]).T
-    >>> obs.shape
-    (6, 2)
-    >>> chisquare(obs)
-    (masked_array(data = [2.0 6.666666666666667],
-                 mask = [False False],
-           fill_value = 1e+20)
-    ,
-     masked_array(data = [ 0.84914504  0.24663415],
-                 mask = False,
-           fill_value = 1e+20)
-    )
-
-    By setting ``axis=None``, the test is applied to all data in the array,
-    which is equivalent to applying the test to the flattened array.
-
-    >>> chisquare(obs, axis=None)
-    (23.31034482758621, 0.015975692534127565)
-    >>> chisquare(obs.ravel())
-    (23.31034482758621, 0.015975692534127565)
-
-    `ddof` is the change to make to the default degrees of freedom.
-
-    >>> chisquare([16, 18, 16, 14, 12, 12], ddof=1)
-    (2.0, 0.73575888234288467)
-
-    The calculation of the p-values is done by broadcasting the
-    chi-squared statistic with `ddof`.
-
-    >>> chisquare([16, 18, 16, 14, 12, 12], ddof=[0,1,2])
-    (2.0, array([ 0.84914504,  0.73575888,  0.5724067 ]))
-
-    `f_obs` and `f_exp` are also broadcast.  In the following, `f_obs` has
-    shape (6,) and `f_exp` has shape (2, 6), so the result of broadcasting
-    `f_obs` and `f_exp` has shape (2, 6).  To compute the desired chi-squared
-    statistics, we use ``axis=1``:
-
-    >>> chisquare([16, 18, 16, 14, 12, 12],
-    ...           f_exp=[[16, 16, 16, 16, 16, 8], [8, 20, 20, 16, 12, 12]],
-    ...           axis=1)
-    (masked_array(data = [3.5 9.25],
-                 mask = [False False],
-           fill_value = 1e+20)
-    ,
-     masked_array(data = [ 0.62338763  0.09949846],
-                 mask = False,
-           fill_value = 1e+20)
-    )
-
-    """
-    f_obs = ma.asarray(f_obs)
-
-    if f_exp is not None:
-        f_exp = ma.asanyarray(f_exp)
-    else:
-        # Compute the equivalent of
-        #   f_exp = f_obs.mean(axis=axis, keepdims=True)
-        # Older versions of numpy do not have the 'keepdims' argument, so
-        # we have to do a little work to achieve the same result.
-        # Ignore 'invalid' errors so the edge case of data sets with length 0
-        # is handled without spurious warnings.
-        with np.errstate(invalid='ignore'):
-            f_exp = np.atleast_1d(f_obs.mean(axis=axis))
-        if axis is not None:
-            reduced_shape = list(f_obs.shape)
-            reduced_shape[axis] = 1
-            f_exp.shape = reduced_shape
-
-    # `w` is the array of terms that are summed along `axis` to create
-    # the chi-squared statistic.
-    w = (f_obs - f_exp)**2 / f_exp
-    chisq = ma.add.reduce(w, axis=axis)
-
-    # Compute the corresponding p values.
-    # Masked elements are ignored, so the data sets may have different
-    # lengths.  Use the `count` method to get the number of elements in
-    # each data set.
-    num_obs = w.count(axis=axis)
-    if isinstance(num_obs, np.ndarray) and num_obs.ndim == 0:
-        # In some cases, the `count` method returns a scalar array (e.g.
-        # np.array(3)), but we want a plain integer.
-        num_obs = int(num_obs)
-    ddof = np.asanyarray(ddof)
-    p = stats.chisqprob(chisq, num_obs - 1 - ddof)
-
-    return chisq, p
+# stats.chisquare works with masked arrays, so we don't need to
+# implement it here.
+# For backwards compatibilty, stats.chisquare is included in
+# the stats.mstats namespace.
+chisquare = stats.chisquare
 
 
 def mannwhitneyu(x,y, use_continuity=True):
@@ -1102,11 +967,12 @@ def ks_twosamp_old(data1, data2):
 #####--------------------------------------------------------------------------
 
 def threshold(a, threshmin=None, threshmax=None, newval=0):
-    """Clip array to a given value.
+    """
+    Clip array to a given value.
 
-    Similar to numpy.clip(), except that values less than threshmin or
-    greater than threshmax are replaced by newval, instead of by
-    threshmin and threshmax respectively.
+    Similar to numpy.clip(), except that values less than `threshmin` or
+    greater than `threshmax` are replaced by `newval`, instead of by
+    `threshmin` and `threshmax` respectively.
 
     Parameters
     ----------
@@ -1121,7 +987,9 @@ def threshold(a, threshmin=None, threshmax=None, newval=0):
 
     Returns
     -------
-    a, with values less (greater) than threshmin (threshmax) replaced with newval.
+    threshold : ndarray
+        Returns `a`, with values less then `threshmin` and values greater
+        `threshmax` replaced with `newval`.
 
     """
     a = ma.array(a, copy=True)
@@ -1990,9 +1858,9 @@ def plotting_positions(data, alpha=0.4, beta=0.4):
     Plotting positions are defined as ``(i-alpha)/(n+1-alpha-beta)``, where:
         - i is the rank order statistics
         - n is the number of unmasked values along the given axis
-        - alpha and beta are two parameters.
+        - `alpha` and `beta` are two parameters.
 
-    Typical values for alpha and beta are:
+    Typical values for `alpha` and `beta` are:
         - (0,1)    : ``p(k) = k/n``, linear interpolation of cdf (R, type 4)
         - (.5,.5)  : ``p(k) = (k-1/2.)/n``, piecewise linear function
           (R, type 5)

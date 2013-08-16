@@ -3,6 +3,10 @@
 """
 from __future__ import division, print_function, absolute_import
 
+import warnings
+import re
+import inspect
+
 from numpy.testing import (TestCase, run_module_suite, assert_equal,
     assert_array_equal, assert_almost_equal, assert_array_almost_equal,
     assert_allclose, assert_, assert_raises, rand, dec)
@@ -12,10 +16,10 @@ from nose import SkipTest
 import numpy
 import numpy as np
 from numpy import typecodes, array
+from scipy import special
 import scipy.stats as stats
 from scipy.stats.distributions import argsreduce
 from scipy.special import xlogy
-import warnings
 
 
 def kolmogorov_check(diststr, args=(), N=20, significance=0.01):
@@ -816,6 +820,112 @@ class TestFitMethod(object):
             assert_allclose(np.array(stats.lognorm.fit(x, floc=0, fscale=20)),
                             [0.25888672, 0, 20], atol=1e-5)
 
+    def test_fix_fit_norm(self):
+        x = np.arange(1, 6)
+
+        loc, scale = stats.norm.fit(x)
+        assert_almost_equal(loc, 3)
+        assert_almost_equal(scale, np.sqrt(2))
+
+        loc, scale = stats.norm.fit(x, floc=2)
+        assert_equal(loc, 2)
+        assert_equal(scale, np.sqrt(3))
+
+        loc, scale = stats.norm.fit(x, fscale=2)
+        assert_almost_equal(loc, 3)
+        assert_equal(scale, 2)
+
+
+    def test_fix_fit_gamma(self):
+        x = np.arange(1, 6)
+        meanlog = np.log(x).mean()
+
+        # A basic test of gamma.fit with floc=0.
+        floc = 0
+        a, loc, scale = stats.gamma.fit(x, floc=floc)
+        s = np.log(x.mean()) - meanlog
+        assert_almost_equal(np.log(a) - special.digamma(a), s, decimal=5)
+        assert_equal(loc, floc)
+        assert_almost_equal(scale, x.mean()/a, decimal=8)
+
+        # Regression tests for gh-2514.
+        # The problem was that if `floc=0` was given, any other fixed
+        # parameters were ignored.
+        f0 = 1
+        floc = 0
+        a, loc, scale = stats.gamma.fit(x, f0=f0, floc=floc)
+        assert_equal(a, f0)
+        assert_equal(loc, floc)
+        assert_almost_equal(scale, x.mean()/a, decimal=8)
+
+        f0 = 2
+        floc = 0
+        a, loc, scale = stats.gamma.fit(x, f0=f0, floc=floc)
+        assert_equal(a, f0)
+        assert_equal(loc, floc)
+        assert_almost_equal(scale, x.mean()/a, decimal=8)
+
+        # loc and scale fixed.
+        floc = 0
+        fscale = 2
+        a, loc, scale = stats.gamma.fit(x, floc=floc, fscale=fscale)
+        assert_equal(loc, floc)
+        assert_equal(scale, fscale)
+        c = meanlog - np.log(fscale)
+        assert_almost_equal(special.digamma(a), c)
+
+
+    def test_fix_fit_beta(self):
+        # Test beta.fit when both floc and fscale are given.
+
+        def mlefunc(a, b, x):
+            # Zeros of this function are critical points of
+            # the maximum likelihood function.
+            n = len(x)
+            s1 = np.log(x).sum()
+            s2 = np.log(1-x).sum()
+            psiab = special.psi(a + b)
+            func = [s1 - n * (-psiab + special.psi(a)),
+                    s2 - n * (-psiab + special.psi(b))]
+            return func
+
+        # Basic test with floc and fscale given.
+        x = np.array([0.125, 0.25, 0.5])
+        a, b, loc, scale = stats.beta.fit(x, floc=0, fscale=1)
+        assert_equal(loc, 0)
+        assert_equal(scale, 1)
+        assert_allclose(mlefunc(a, b, x), [0,0], atol=1e-6)
+
+        # Basic test with f0, floc and fscale given.
+        # This is also a regression test for gh-2514.
+        x = np.array([0.125, 0.25, 0.5])
+        a, b, loc, scale = stats.beta.fit(x, f0=2, floc=0, fscale=1)
+        assert_equal(a, 2)
+        assert_equal(loc, 0)
+        assert_equal(scale, 1)
+        da, db = mlefunc(a, b, x)
+        assert_allclose(db, 0, atol=1e-5)
+
+        # Same floc and fscale values as above, but reverse the data
+        # and fix b (f1).
+        x2 = 1 - x
+        a2, b2, loc2, scale2 = stats.beta.fit(x2, f1=2, floc=0, fscale=1)
+        assert_equal(b2, 2)
+        assert_equal(loc2, 0)
+        assert_equal(scale2, 1)
+        da, db = mlefunc(a2, b2, x2)
+        assert_allclose(da, 0, atol=1e-5)
+        # a2 of this test should equal b from above.
+        assert_almost_equal(a2, b)
+
+        # Check for detection of data out of bounds when floc and fscale
+        # are given.
+        assert_raises(ValueError, stats.beta.fit, x, floc=0.5, fscale=1)
+        y = np.array([0, .5, 1])
+        assert_raises(ValueError, stats.beta.fit, y, floc=0, fscale=1)
+        assert_raises(ValueError, stats.beta.fit, y, floc=0, fscale=1, f0=2)
+        assert_raises(ValueError, stats.beta.fit, y, floc=0, fscale=1, f1=2)
+
 
 class TestFrozen(TestCase):
     """Test that a frozen distribution gives the same results as the original object.
@@ -1097,15 +1207,15 @@ def test_regression_ticket_1421():
     assert_('pmf(x,' in stats.poisson.__doc__)
 
 
-def test_nan_arguments_ticket_835():
-    assert_(np.isnan(stats.t.logcdf(np.nan)))
-    assert_(np.isnan(stats.t.cdf(np.nan)))
-    assert_(np.isnan(stats.t.logsf(np.nan)))
-    assert_(np.isnan(stats.t.sf(np.nan)))
-    assert_(np.isnan(stats.t.pdf(np.nan)))
-    assert_(np.isnan(stats.t.logpdf(np.nan)))
-    assert_(np.isnan(stats.t.ppf(np.nan)))
-    assert_(np.isnan(stats.t.isf(np.nan)))
+def test_nan_arguments_gh_issue_1362():
+    assert_(np.isnan(stats.t.logcdf(1, np.nan)))
+    assert_(np.isnan(stats.t.cdf(1, np.nan)))
+    assert_(np.isnan(stats.t.logsf(1, np.nan)))
+    assert_(np.isnan(stats.t.sf(1, np.nan)))
+    assert_(np.isnan(stats.t.pdf(1, np.nan)))
+    assert_(np.isnan(stats.t.logpdf(1, np.nan)))
+    assert_(np.isnan(stats.t.ppf(1, np.nan)))
+    assert_(np.isnan(stats.t.isf(1, np.nan)))
 
     assert_(np.isnan(stats.bernoulli.logcdf(np.nan, 0.5)))
     assert_(np.isnan(stats.bernoulli.cdf(np.nan, 0.5)))
@@ -1331,6 +1441,231 @@ def test_foldnorm_zero():
     # Parameter value c=0 was not enabled, see gh-2399.
     rv = stats.foldnorm(0, scale=1)
     assert_equal(rv.cdf(0), 0)  # rv.cdf(0) previously resulted in: nan
+
+
+## Test subclassing distributions w/ explicit shapes
+
+class _distr_gen(stats.rv_continuous):
+    def _pdf(self, x, a):
+        return 42
+
+
+class _distr2_gen(stats.rv_continuous):
+    def _cdf(self, x, a):
+        return 42 * a + x
+
+
+class _distr3_gen(stats.rv_continuous):
+    def _pdf(self, x, a, b):
+        return a + b
+
+    def _cdf(self, x, a):
+        """Different # of shape params from _pdf, to be able to check that
+        inspection catches the inconsistency."""
+        return 42 * a + x
+
+
+class _distr6_gen(stats.rv_continuous):
+    #Two shape parameters (both _pdf and _cdf defined, consistent shapes.)
+    def _pdf(self, x, a, b):
+        return a*x + b
+
+    def _cdf(self, x, a, b):
+        return 42 * a + x
+
+
+class TestSubclassingExplicitShapes(TestCase):
+    """Construct a distribution w/ explicit shapes parameter and test it."""
+
+    def test_correct_shapes(self):
+        dummy_distr = _distr_gen(name='dummy', shapes='a')
+        assert_equal(dummy_distr.pdf(1, a=1), 42)
+
+    def test_wrong_shapes_1(self):
+        dummy_distr = _distr_gen(name='dummy', shapes='A')
+        assert_raises(TypeError, dummy_distr.pdf, 1, **dict(a=1))
+
+    def test_wrong_shapes_2(self):
+        dummy_distr = _distr_gen(name='dummy', shapes='a, b, c')
+        dct =dict(a=1, b=2, c=3)
+        assert_raises(TypeError, dummy_distr.pdf, 1, **dct)
+
+    def test_shapes_string(self):
+        # shapes must be a string
+        dct = dict(name='dummy', shapes=42)
+        assert_raises(TypeError, _distr_gen, **dct)
+
+    def test_shapes_identifiers_1(self):
+        # shapes must be a comma-separated list of valid python identifiers
+        dct = dict(name='dummy', shapes='(!)')
+        assert_raises(SyntaxError, _distr_gen, **dct)
+
+    def test_shapes_identifiers_2(self):
+        dct = dict(name='dummy', shapes='4chan')
+        assert_raises(SyntaxError, _distr_gen, **dct)
+
+    def test_shapes_identifiers_3(self):
+        dct = dict(name='dummy', shapes='m(fti)')
+        assert_raises(SyntaxError, _distr_gen, **dct)
+
+    def test_shapes_identifiers_nodefaults(self):
+        dct = dict(name='dummy', shapes='a=2')
+        assert_raises(SyntaxError, _distr_gen, **dct)
+
+    def test_shapes_args(self):
+        dct = dict(name='dummy', shapes='*args')
+        assert_raises(SyntaxError, _distr_gen, **dct)
+
+    def test_shapes_kwargs(self):
+        dct = dict(name='dummy', shapes='**kwargs')
+        assert_raises(SyntaxError, _distr_gen, **dct)
+
+    def test_shapes_keywords(self):
+        # python keywords cannot be used for shape parameters
+        dct = dict(name='dummy', shapes='a, b, c, lambda')
+        assert_raises(SyntaxError, _distr_gen, **dct)
+
+
+    def test_shapes_signature(self):
+        # test explicit shapes which agree w/ the signature of _pdf
+        class _dist_gen(stats.rv_continuous):
+            def _pdf(self, x, a):
+                return stats.norm._pdf(x) * a
+
+        dist = _dist_gen(shapes='a')
+        assert_equal(dist.pdf(0.5, a=2), stats.norm.pdf(0.5)*2)
+
+
+    def test_shapes_signature_inconsistent(self):
+        # test explicit shapes which do not agree w/ the signature of _pdf
+        class _dist_gen(stats.rv_continuous):
+            def _pdf(self, x, a):
+                return stats.norm._pdf(x) * a
+
+        dist = _dist_gen(shapes='a, b')
+        assert_raises(TypeError, dist.pdf, 0.5, **dict(a=1, b=2))
+
+
+    def test_star_args(self):
+        # test _pdf with only starargs
+        # NB: **kwargs of pdf will never reach _pdf
+        class _dist_gen(stats.rv_continuous):
+            def _pdf(self, x, *args):
+                extra_kwarg = args[0]
+                return stats.norm._pdf(x) * extra_kwarg
+
+        dist = _dist_gen(shapes='extra_kwarg')
+        assert_equal(dist.pdf(0.5, extra_kwarg=33), stats.norm.pdf(0.5)*33)
+        assert_equal(dist.pdf(0.5, 33), stats.norm.pdf(0.5)*33)
+        assert_raises(TypeError, dist.pdf, 0.5, **dict(xxx=33))
+
+    def test_star_args_2(self):
+        # test _pdf with named & starargs
+        # NB: **kwargs of pdf will never reach _pdf
+        class _dist_gen(stats.rv_continuous):
+            def _pdf(self, x, offset, *args):
+                extra_kwarg = args[0]
+                return stats.norm._pdf(x) * extra_kwarg + offset
+
+        dist = _dist_gen(shapes='offset, extra_kwarg')
+        assert_equal(dist.pdf(0.5, offset=111, extra_kwarg=33), 
+                     stats.norm.pdf(0.5)*33 + 111)
+        assert_equal(dist.pdf(0.5, 111, 33), 
+                     stats.norm.pdf(0.5)*33 + 111)
+
+    def test_extra_kwarg(self):
+        # **kwargs to _pdf are ignored.
+        # this is a limitation of the framework (_pdf(x, *goodargs))
+        class _distr_gen(stats.rv_continuous):
+            def _pdf(self, x, *args, **kwargs):
+                # _pdf should handle *args, **kwargs itself.  Here "handling" is
+                # ignoring *args and looking for ``extra_kwarg`` and using that.
+                extra_kwarg = kwargs.pop('extra_kwarg', 1)
+                return stats.norm._pdf(x) * extra_kwarg
+
+        dist = _distr_gen(shapes='extra_kwarg')
+        assert_equal(dist.pdf(1, extra_kwarg=3), stats.norm.pdf(1))
+
+
+    def shapes_empty_string(self):
+        # shapes='' is equivalent to shapes=None
+        class _dist_gen(stats.rv_continuous):
+            def _pdf(self, x):
+                return stats.norm.pdf(x)
+
+        dist = _dist_gen(shapes='')
+        assert_equal(dist.pdf(0.5), stats.norm.pdf(0.5))
+        
+
+class TestSubclassingNoShapes(TestCase):
+    """Construct a distribution w/o explicit shapes parameter and test it."""
+
+    def test_only__pdf(self):
+        dummy_distr = _distr_gen(name='dummy')
+        assert_equal(dummy_distr.pdf(1, a=1), 42)
+
+    def test_only__cdf(self):
+        # _pdf is determined from _cdf by taking numerical derivative
+        dummy_distr = _distr2_gen(name='dummy')
+        assert_almost_equal(dummy_distr.pdf(1, a=1), 1)
+
+    def test_signature_inspection(self):
+        # check that _pdf signature inspection works correctly, and is used in
+        # the class docstring
+        dummy_distr = _distr_gen(name='dummy')
+        assert_equal(dummy_distr.numargs, 1)
+        assert_equal(dummy_distr.shapes, 'a')
+        res = re.findall('logpdf\(x, a, loc=0, scale=1\)',
+                         dummy_distr.__doc__)
+        assert_(len(res) == 1)
+
+    def test_signature_inspection_2args(self):
+        # same for 2 shape params and both _pdf and _cdf defined
+        dummy_distr = _distr6_gen(name='dummy')
+        assert_equal(dummy_distr.numargs, 2)
+        assert_equal(dummy_distr.shapes, 'a, b')
+        res = re.findall('logpdf\(x, a, b, loc=0, scale=1\)',
+                         dummy_distr.__doc__)
+        assert_(len(res) == 1)
+
+    def test_signature_inspection_2args_incorrect_shapes(self):
+        # both _pdf and _cdf defined, but shapes are inconsistent: raises
+        try:
+            dummy_distr = _distr3_gen(name='dummy')
+        except TypeError:
+            pass
+        else:
+            raise AssertionError('TypeError not raised.')
+
+    def test_defaults_raise(self):
+        # default arguments should raise 
+        class _dist_gen(stats.rv_continuous):
+            def _pdf(self, x, a=42):
+                return 42
+        assert_raises(TypeError, _dist_gen, **dict(name='dummy'))
+
+    def test_starargs_raise(self):
+        # without explicit shapes, *args are not allowed
+        class _dist_gen(stats.rv_continuous):
+            def _pdf(self, x, a, *args):
+                return 42
+        assert_raises(TypeError, _dist_gen, **dict(name='dummy'))
+
+    def test_kwargs_raise(self):
+        # without explicit shapes, **kwargs are not allowed
+        class _dist_gen(stats.rv_continuous):
+            def _pdf(self, x, a, **kwargs):
+                return 42
+        assert_raises(TypeError, _dist_gen, **dict(name='dummy'))
+
+
+def test_docstrings():
+    badones = [',\s*,', '\(\s*,', '^\s*:']
+    for distname in stats.__all__:
+        dist = getattr(stats, distname)
+        if isinstance(dist, (stats.rv_discrete, stats.rv_continuous)):
+            for regex in badones:
+                assert_( re.search(regex, dist.__doc__) is None)
 
 
 if __name__ == "__main__":

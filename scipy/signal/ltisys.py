@@ -108,13 +108,13 @@ def abcd_normalize(A=None, B=None, C=None, D=None):
         C = zeros((MC, NC))
     if (MB == 0) and (NB == 0) and (MA != 0) and (ND != 0):
         MB, NB = MA, ND
-        B = zeros(MB, NB)
+        B = zeros((MB, NB))
     if (MD == 0) and (ND == 0) and (MC != 0) and (NB != 0):
         MD, ND = MC, NB
-        D = zeros(MD, ND)
+        D = zeros((MD, ND))
     if (MA == 0) and (NA == 0) and (MB != 0) and (NC != 0):
         MA, NA = MB, NC
-        A = zeros(MA, NA)
+        A = zeros((MA, NA))
 
     if MA != NA:
         raise ValueError("A must be square.")
@@ -260,24 +260,16 @@ class lti(object):
         """
         N = len(args)
         if N == 2:  # Numerator denominator transfer function input
-            self.__dict__['num'], self.__dict__['den'] = normalize(*args)
-            self.__dict__['zeros'], self.__dict__['poles'], \
-            self.__dict__['gain'] = tf2zpk(*args)
-            self.__dict__['A'], self.__dict__['B'], \
-                                self.__dict__['C'], \
-                                self.__dict__['D'] = tf2ss(*args)
+            self._num, self._den = normalize(*args)
+            self._update(N)
             self.inputs = 1
             if len(self.num.shape) > 1:
                 self.outputs = self.num.shape[0]
             else:
                 self.outputs = 1
         elif N == 3:      # Zero-pole-gain form
-            self.__dict__['zeros'], self.__dict__['poles'], \
-                                    self.__dict__['gain'] = args
-            self.__dict__['num'], self.__dict__['den'] = zpk2tf(*args)
-            self.__dict__['A'], self.__dict__['B'], \
-                                self.__dict__['C'], \
-                                self.__dict__['D'] = zpk2ss(*args)
+            self._zeros, self._poles, self._gain = args
+            self._update(N)
             # make sure we have numpy arrays
             self.zeros = numpy.asarray(self.zeros)
             self.poles = numpy.asarray(self.poles)
@@ -287,52 +279,18 @@ class lti(object):
             else:
                 self.outputs = 1
         elif N == 4:       # State-space form
-            self.__dict__['A'], self.__dict__['B'], \
-                                self.__dict__['C'], \
-                                self.__dict__['D'] = abcd_normalize(*args)
-            self.__dict__['zeros'], self.__dict__['poles'], \
-                                    self.__dict__['gain'] = ss2zpk(*args)
-            self.__dict__['num'], self.__dict__['den'] = ss2tf(*args)
+            self._A, self._B, self._C, self._D = abcd_normalize(*args)
+            self._update(N)
             self.inputs = self.B.shape[-1]
             self.outputs = self.C.shape[0]
         else:
             raise ValueError("Needs 2, 3, or 4 arguments.")
 
-    def __setattr__(self, attr, val):
-        if attr in ['num', 'den']:
-            self.__dict__[attr] = val
-            self.__dict__['zeros'], self.__dict__['poles'], \
-                                    self.__dict__['gain'] = \
-                                    tf2zpk(self.num, self.den)
-            self.__dict__['A'], self.__dict__['B'], \
-                                self.__dict__['C'], \
-                                self.__dict__['D'] = \
-                                tf2ss(self.num, self.den)
-        elif attr in ['zeros', 'poles', 'gain']:
-            self.__dict__[attr] = val
-            self.__dict__['num'], self.__dict__['den'] = \
-                                  zpk2tf(self.zeros,
-                                         self.poles, self.gain)
-            self.__dict__['A'], self.__dict__['B'], \
-                                self.__dict__['C'], \
-                                self.__dict__['D'] = \
-                                zpk2ss(self.zeros,
-                                       self.poles, self.gain)
-        elif attr in ['A', 'B', 'C', 'D']:
-            self.__dict__[attr] = val
-            self.__dict__['zeros'], self.__dict__['poles'], \
-                                    self.__dict__['gain'] = \
-                                    ss2zpk(self.A, self.B,
-                                           self.C, self.D)
-            self.__dict__['num'], self.__dict__['den'] = \
-                                  ss2tf(self.A, self.B,
-                                        self.C, self.D)
-        else:
-            self.__dict__[attr] = val
-
     def __repr__(self):
-        # Canonical representation using state-space to preserve numerical
-        # precision and any MIMO information
+        """
+        Canonical representation using state-space to preserve numerical
+        precision and any MIMO information
+        """
         return '{0}(\n{1},\n{2},\n{3},\n{4}\n)'.format(
             self.__class__.__name__,
             repr(self.A),
@@ -340,6 +298,100 @@ class lti(object):
             repr(self.C),
             repr(self.D),
             )
+
+    @property
+    def num(self):
+        return self._num
+
+    @num.setter
+    def num(self, value):
+        self._num = value
+        self._update(2)
+
+    @property
+    def den(self):
+        return self._den
+
+    @den.setter
+    def den(self, value):
+        self._den = value
+        self._update(2)
+
+    @property
+    def zeros(self):
+        return self._zeros
+
+    @zeros.setter
+    def zeros(self, value):
+        self._zeros = value
+        self._update(3)
+
+    @property
+    def poles(self):
+        return self._poles
+
+    @poles.setter
+    def poles(self, value):
+        self._poles = value
+        self._update(3)
+
+    @property
+    def gain(self):
+        return self._gain
+
+    @gain.setter
+    def gain(self, value):
+        self._gain = value
+        self._update(3)
+
+    @property
+    def A(self):
+        return self._A
+
+    @A.setter
+    def A(self, value):
+        self._A = value
+        self._update(4)
+
+    @property
+    def B(self):
+        return self._B
+
+    @B.setter
+    def B(self, value):
+        self._B = value
+        self._update(4)
+
+    @property
+    def C(self):
+        return self._C
+
+    @C.setter
+    def C(self, value):
+        self._C = value
+        self._update(4)
+
+    @property
+    def D(self):
+        return self._D
+
+    @D.setter
+    def D(self, value):
+        self._D = value
+        self._update(4)
+
+    def _update(self, N):
+        if N == 2:
+            self._zeros, self._poles, self._gain = tf2zpk(self.num, self.den)
+            self._A, self._B, self._C, self._D = tf2ss(self.num, self.den)
+        if N == 3:
+            self._num, self._den = zpk2tf(self.zeros, self.poles, self.gain)
+            self._A, self._B, self._C, self._D = zpk2ss(self.zeros,
+                                                        self.poles, self.gain)
+        if N == 4:
+            self._num, self._den = ss2tf(self.A, self.B, self.C, self.D)
+            self._zeros, self._poles, self._gain = ss2zpk(self.A, self.B,
+                                                          self.C, self.D)
 
     def impulse(self, X0=None, T=None, N=None):
         return impulse(self, X0=X0, T=T, N=N)
@@ -449,7 +501,7 @@ def lsim2(system, U=None, T=None, X0=None, **kwargs):
         # changed from a required positional argument to a keyword,
         # and T is after U in the argument list.  So we either: change
         # the API and move T in front of U; check here for T being
-        # None and raise an excpetion; or assign a default value to T
+        # None and raise an exception; or assign a default value to T
         # here.  This code implements the latter.
         T = linspace(0, 10.0, 101)
 
@@ -490,6 +542,20 @@ def lsim2(system, U=None, T=None, X0=None, **kwargs):
     return T, squeeze(transpose(yout)), xout
 
 
+def _cast_to_array_dtype(in1, in2):
+    """Cast array to dtype of other array, while avoiding ComplexWarning.
+
+    Those can be raised when casting complex to real.
+    """
+    if numpy.issubdtype(in2.dtype, numpy.float):
+        # dtype to cast to is not complex, so use .real
+        in1 = in1.real.astype(in2.dtype)
+    else:
+        in1 = in1.astype(in2.dtype)
+
+    return in1
+
+
 def lsim(system, U, T, X0=None, interp=1):
     """
     Simulate output of a continuous-time linear system.
@@ -527,15 +593,6 @@ def lsim(system, U, T, X0=None, interp=1):
         Time-evolution of the state-vector.
 
     """
-    # system is an lti system or a sequence
-    #  with 2 (num, den)
-    #       3 (zeros, poles, gain)
-    #       4 (A, B, C, D)
-    #  describing the system
-    #  U is an input vector at times T
-    #   if system describes multiple inputs
-    #   then U can be a rank-2 array with the number of columns
-    #   being the number of inputs
     if isinstance(system, lti):
         sys = system
     else:
@@ -564,7 +621,9 @@ def lsim(system, U, T, X0=None, interp=1):
     lam, v = linalg.eig(A)
     vt = transpose(v)
     vti = linalg.inv(vt)
-    GT = dot(dot(vti, diag(numpy.exp(dt * lam))), vt).astype(xout.dtype)
+    GT = dot(dot(vti, diag(numpy.exp(dt * lam))), vt)
+    GT = _cast_to_array_dtype(GT, xout)
+
     ATm1 = linalg.inv(AT)
     ATm2 = dot(ATm1, ATm1)
     I = eye(A.shape[0], dtype=A.dtype)
@@ -577,8 +636,8 @@ def lsim(system, U, T, X0=None, interp=1):
         dt1 = T[k] - T[k - 1]
         if dt1 != dt:
             dt = dt1
-            GT = dot(dot(vti, diag(numpy.exp(dt * lam))),
-                     vt).astype(xout.dtype)
+            GT = dot(dot(vti, diag(numpy.exp(dt * lam))), vt)
+            GT = _cast_to_array_dtype(GT, xout)
             GTmI = GT - I
             F1T = dot(dot(BT, GTmI), ATm1)
             if interp:
@@ -613,7 +672,8 @@ def _default_response_times(A, n):
         The 1-D array of length `n` of time samples at which the response
         is to be computed.
     """
-    # Create a reasonable time interval.  This could use some more work.
+    # Create a reasonable time interval.
+    # TODO: This could use some more work.
     # For example, what is expected when the system is unstable?
     vals = linalg.eigvals(A)
     r = min(abs(real(vals)))
@@ -629,9 +689,15 @@ def impulse(system, X0=None, T=None, N=None):
 
     Parameters
     ----------
-    system : LTI class or tuple
-        If specified as a tuple, the system is described as
-        ``(num, den)``, ``(zero, pole, gain)``, or ``(A, B, C, D)``.
+    system : an instance of the LTI class or a tuple of array_like
+        describing the system.
+        The following gives the number of elements in the tuple and
+        the interpretation:
+
+            * 2 (num, den)
+            * 3 (zeros, poles, gain)
+            * 4 (A, B, C, D)
+
     X0 : array_like, optional
         Initial state-vector.  Defaults to zero.
     T : array_like, optional
@@ -660,14 +726,19 @@ def impulse(system, X0=None, T=None, N=None):
         N = 100
     if T is None:
         T = _default_response_times(sys.A, N)
+    else:
+        T = asarray(T)
+
     h = zeros(T.shape, sys.A.dtype)
     s, v = linalg.eig(sys.A)
     vi = linalg.inv(v)
     C = sys.C
     for k in range(len(h)):
         es = diag(numpy.exp(s * T[k]))
-        eA = (dot(dot(v, es), vi)).astype(h.dtype)
+        eA = dot(dot(v, es), vi)
+        eA = _cast_to_array_dtype(eA, h)
         h[k] = squeeze(dot(dot(C, eA), B))
+
     return T, h
 
 
@@ -677,7 +748,8 @@ def impulse2(system, X0=None, T=None, N=None, **kwargs):
 
     Parameters
     ----------
-    system : an instance of the LTI class or a tuple describing the system.
+    system : an instance of the LTI class or a tuple of array_like
+        describing the system.
         The following gives the number of elements in the tuple and
         the interpretation:
 
@@ -685,13 +757,13 @@ def impulse2(system, X0=None, T=None, N=None, **kwargs):
             * 3 (zeros, poles, gain)
             * 4 (A, B, C, D)
 
+    X0 : 1-D array_like, optional
+        The initial condition of the state vector.  Default: 0 (the
+        zero vector).
     T : 1-D array_like, optional
         The time steps at which the input is defined and at which the
         output is desired.  If `T` is not given, the function will
         generate a set of time samples automatically.
-    X0 : 1-D array_like, optional
-        The initial condition of the state vector.  Default: 0 (the
-        zero vector).
     N : int, optional
         Number of time points to compute.  Default: 100.
     kwargs : various types
@@ -743,11 +815,11 @@ def impulse2(system, X0=None, T=None, N=None, **kwargs):
         N = 100
     if T is None:
         T = _default_response_times(sys.A, N)
+
     # Move the impulse in the input to the initial conditions, and then
     # solve using lsim2().
-    U = zeros_like(T)
     ic = B + X0
-    Tr, Yr, Xr = lsim2(sys, U, T, ic, **kwargs)
+    Tr, Yr, Xr = lsim2(sys, T=T, X0=ic, **kwargs)
     return Tr, Yr
 
 
@@ -756,7 +828,8 @@ def step(system, X0=None, T=None, N=None):
 
     Parameters
     ----------
-    system : an instance of the LTI class or a tuple describing the system.
+    system : an instance of the LTI class or a tuple of array_like
+        describing the system.
         The following gives the number of elements in the tuple and
         the interpretation:
 
@@ -791,6 +864,8 @@ def step(system, X0=None, T=None, N=None):
         N = 100
     if T is None:
         T = _default_response_times(sys.A, N)
+    else:
+        T = asarray(T)
     U = ones(T.shape, sys.A.dtype)
     vals = lsim(sys, U, T, X0=X0)
     return vals[0], vals[1]
@@ -805,7 +880,8 @@ def step2(system, X0=None, T=None, N=None, **kwargs):
 
     Parameters
     ----------
-    system : an instance of the LTI class or a tuple describing the system.
+    system : an instance of the LTI class or a tuple of array_like
+        describing the system.
         The following gives the number of elements in the tuple and
         the interpretation:
 
@@ -848,6 +924,8 @@ def step2(system, X0=None, T=None, N=None, **kwargs):
         N = 100
     if T is None:
         T = _default_response_times(sys.A, N)
+    else:
+        T = asarray(T)
     U = ones(T.shape, sys.A.dtype)
     vals = lsim2(sys, U, T, X0=X0, **kwargs)
     return vals[0], vals[1]

@@ -110,11 +110,12 @@ def dct(x, type=2, n=None, axis=-1, norm=None, overwrite_x=0):
 
     References
     ----------
-    http://en.wikipedia.org/wiki/Discrete_cosine_transform
-
-    'A Fast Cosine Transform in One and Two Dimensions', by J. Makhoul, `IEEE
-    Transactions on acoustics, speech and signal processing` vol. 28(1),
-    pp. 27-34, http://dx.doi.org/10.1109/TASSP.1980.1163351 (1980).
+    .. [1] 'A Fast Cosine Transform in One and Two Dimensions', by J. 
+           Makhoul, `IEEE Transactions on acoustics, speech and signal 
+           processing` vol. 28(1), pp. 27-34, 
+           http://dx.doi.org/10.1109/TASSP.1980.1163351 (1980).
+    .. [2] Wikipedia, "Discrete cosine transform",
+           http://en.wikipedia.org/wiki/Discrete_cosine_transform
 
     """
     if type == 1 and norm is not None:
@@ -299,8 +300,9 @@ def dst(x, type=2, n=None, axis=-1, norm=None, overwrite_x=0):
 
     **type II**
 
-    There are several definitions of the DST-I; we use the following
-    for ``norm=None``.  DST-I assumes the input is odd around n=-1 and n=N. ::
+    There are several definitions of the DST-II; we use the following
+    for ``norm=None``.  DST-II assumes the input is odd around n=-1/2 and 
+    n=N-1/2; the output is odd around k=-1 and even around k=N-1 ::
 
                 N-1
       y[k] = 2* sum x[n]*sin(pi*(k+1)*(n+0.5)/N), 0 <= k < N.
@@ -327,7 +329,8 @@ def dst(x, type=2, n=None, axis=-1, norm=None, overwrite_x=0):
 
     References
     ----------
-    .. [1] http://en.wikipedia.org/wiki/Discrete_sine_transform
+    .. [1] Wikipedia, "Discrete sine transform",
+           http://en.wikipedia.org/wiki/Discrete_sine_transform
 
     """
     if type == 1 and norm is not None:

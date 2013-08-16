@@ -15,6 +15,7 @@ from numpy.testing import TestCase, assert_, assert_equal, \
     assert_almost_equal, assert_array_almost_equal, assert_array_equal, \
     assert_approx_equal, assert_raises, run_module_suite, \
     assert_allclose, dec
+import numpy.ma.testutils as mat
 from numpy import array, arange, float32, float64, power
 import numpy as np
 
@@ -30,85 +31,20 @@ import scipy.stats as stats
     implementation in testing SAS, SPSS, and S-Plus
 """
 
-##  Datasets
-##  These data sets are from the nasty.dat sets used by Wilkinson
-##  for MISS, need to be able to represent missing values
-##  For completeness, I should write the relevant tests and count them as failures
-##  Somewhat acceptable, since this is still beta software.  It would count as a
-##  good target for 1.0 status
-X = array([1,2,3,4,5,6,7,8,9],float)
+#  Datasets
+#  These data sets are from the nasty.dat sets used by Wilkinson
+#  For completeness, I should write the relevant tests and count them as failures
+#  Somewhat acceptable, since this is still beta software.  It would count as a
+#  good target for 1.0 status
+X = array([1,2,3,4,5,6,7,8,9], float)
 ZERO = array([0,0,0,0,0,0,0,0,0], float)
-# MISS=array([.,.,.,.,.,.,.,.,.], float)
-BIG = array([99999991,99999992,99999993,99999994,99999995,99999996,99999997,99999998,99999999],float)
-LITTLE = array([0.99999991,0.99999992,0.99999993,0.99999994,0.99999995,0.99999996,0.99999997,0.99999998,0.99999999],float)
-HUGE = array([1e+12,2e+12,3e+12,4e+12,5e+12,6e+12,7e+12,8e+12,9e+12],float)
-TINY = array([1e-12,2e-12,3e-12,4e-12,5e-12,6e-12,7e-12,8e-12,9e-12],float)
-ROUND = array([0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5],float)
-X2 = X * X
-X3 = X2 * X
-X4 = X3 * X
-X5 = X4 * X
-X6 = X5 * X
-X7 = X6 * X
-X8 = X7 * X
-X9 = X8 * X
-
-
-class TestRound(TestCase):
-    """ W.II. ROUND
-
-        You should get the numbers 1 to 9.  Many language compilers,
-        such as Turbo Pascal and Lattice C, fail this test (they round
-        numbers inconsistently). Needless to say, statical packages
-        written in these languages may fail the test as well.  You can
-        also check the following expressions:
-            Y = INT(2.6*7 -0.2)                   (Y should be 18)
-            Y = 2-INT(EXP(LOG(SQR(2)*SQR(2))))    (Y should be 0)
-            Y = INT(3-EXP(LOG(SQR(2)*SQR(2))))    (Y should be 1)
-        INT is the integer function.  It converts decimal numbers to
-        integers by throwing away numbers after the decimal point.  EXP
-        is exponential, LOG is logarithm, and SQR is suqare root.  You may
-        have to substitute similar names for these functions for different
-        packages.  Since the square of a square root should return the same
-        number, and the exponential of a log should return the same number,
-        we should get back a 2 from this function of functions.  By taking
-        the integer result and subtracting from 2, we are exposing the
-        roundoff errors.  These simple functions are at the heart of
-        statistical calculations.
-    """
-
-    def test_rounding0(self):
-        """ W.II.A.0. Print ROUND with only one digit.
-
-            You should get the numbers 1 to 9.  Many language compilers,
-            such as Turbo Pascal and Lattice C, fail this test (they round
-            numbers inconsistently). Needless to say, statical packages
-            written in these languages may fail the test as well.
-        """
-        if sys.version_info[0] >= 3:
-            # round to even
-            for i in range(0,9):
-                y = round(ROUND[i])
-                assert_equal(y, 2*((i+1)//2))
-        else:
-            for i in range(0,9):
-                y = round(ROUND[i])
-                assert_equal(y,i+1)
-
-    def test_rounding1(self):
-        """ W.II.A.1. Y = INT(2.6*7 -0.2) (Y should be 18)"""
-        y = int(2.6*7 - 0.2)
-        assert_equal(y, 18)
-
-    def test_rounding2(self):
-        """ W.II.A.2. Y = 2-INT(EXP(LOG(SQR(2)*SQR(2))))   (Y should be 0)"""
-        y = 2-int(np.exp(np.log(np.sqrt(2.)*np.sqrt(2.))))
-        assert_equal(y,0)
-
-    def test_rounding3(self):
-        """ W.II.A.3. Y = INT(3-EXP(LOG(SQR(2)*SQR(2))))    (Y should be 1)"""
-        y = (int(round((3-np.exp(np.log(np.sqrt(2.0)*np.sqrt(2.0)))))))
-        assert_equal(y,1)
+BIG = array([99999991,99999992,99999993,99999994,99999995,99999996,99999997,
+             99999998,99999999], float)
+LITTLE = array([0.99999991,0.99999992,0.99999993,0.99999994,0.99999995,0.99999996,
+                0.99999997,0.99999998,0.99999999], float)
+HUGE = array([1e+12,2e+12,3e+12,4e+12,5e+12,6e+12,7e+12,8e+12,9e+12], float)
+TINY = array([1e-12,2e-12,3e-12,4e-12,5e-12,6e-12,7e-12,8e-12,9e-12], float)
+ROUND = array([0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5], float)
 
 
 class TestBasicStats(TestCase):
@@ -152,17 +88,17 @@ class TestNanFunc(TestCase):
         self.Xsomet = self.Xsomet[1:]
 
     def test_nanmean_none(self):
-        """Check nanmean when no values are nan."""
+        # Check nanmean when no values are nan.
         m = stats.nanmean(X)
         assert_approx_equal(m, X[4])
 
     def test_nanmean_some(self):
-        """Check nanmean when some values only are nan."""
+        # Check nanmean when some values only are nan.
         m = stats.nanmean(self.Xsome)
         assert_approx_equal(m, 5.5)
 
     def test_nanmean_all(self):
-        """Check nanmean when all values are nan."""
+        # Check nanmean when all values are nan.
         olderr = np.seterr(all='ignore')
         try:
             m = stats.nanmean(self.Xall)
@@ -171,17 +107,17 @@ class TestNanFunc(TestCase):
         assert_(np.isnan(m))
 
     def test_nanstd_none(self):
-        """Check nanstd when no values are nan."""
+        # Check nanstd when no values are nan.
         s = stats.nanstd(self.X)
         assert_approx_equal(s, np.std(self.X, ddof=1))
 
     def test_nanstd_some(self):
-        """Check nanstd when some values only are nan."""
+        # Check nanstd when some values only are nan.
         s = stats.nanstd(self.Xsome)
         assert_approx_equal(s, np.std(self.Xsomet, ddof=1))
 
     def test_nanstd_all(self):
-        """Check nanstd when all values are nan."""
+        # Check nanstd when all values are nan.
         olderr = np.seterr(all='ignore')
         try:
             s = stats.nanstd(self.Xall)
@@ -194,22 +130,22 @@ class TestNanFunc(TestCase):
         assert_equal(stats.nanstd(x, -1), 1)
 
     def test_nanmedian_none(self):
-        """Check nanmedian when no values are nan."""
+        # Check nanmedian when no values are nan.
         m = stats.nanmedian(self.X)
         assert_approx_equal(m, np.median(self.X))
 
     def test_nanmedian_some(self):
-        """Check nanmedian when some values only are nan."""
+        # Check nanmedian when some values only are nan.
         m = stats.nanmedian(self.Xsome)
         assert_approx_equal(m, np.median(self.Xsomet))
 
     def test_nanmedian_all(self):
-        """Check nanmedian when all values are nan."""
+        # Check nanmedian when all values are nan.
         m = stats.nanmedian(self.Xall)
         assert_(np.isnan(m))
 
     def test_nanmedian_scalars(self):
-        """Check nanmedian for scalar inputs. See ticket #1098."""
+        # Check nanmedian for scalar inputs. See ticket #1098.
         assert_equal(stats.nanmedian(1), np.median(1))
         assert_equal(stats.nanmedian(True), np.median(True))
         assert_equal(stats.nanmedian(np.array(1)), np.median(np.array(1)))
@@ -394,8 +330,6 @@ class TestFisherExact(TestCase):
         assert_approx_equal(res[0], 4.0 / 56)
 
     def test_precise(self):
-        fisher_exact = stats.fisher_exact
-
         # results from R
         #
         # R defines oddsratio differently (see Notes section of fisher_exact
@@ -658,33 +592,18 @@ def test_kendalltau():
 
 class TestRegression(TestCase):
     def test_linregressBIGX(self):
-        """ W.II.F.  Regress BIG on X.
-
-            The constant should be 99999990 and the regression coefficient should be 1.
-        """
+        # W.II.F.  Regress BIG on X.
+        # The constant should be 99999990 and the regression coefficient should be 1.
         y = stats.linregress(X,BIG)
         intercept = y[1]
         r = y[2]
         assert_almost_equal(intercept,99999990)
         assert_almost_equal(r,1.0)
 
-##     W.IV.A. Take the NASTY dataset above.  Use the variable X as a
-##     basis for computing polynomials.  Namely, compute X1=X, X2=X*X,
-##     X3=X*X*X, and so on up to 9 products.  Use the algebraic
-##     transformation language within the statistical package itself.  You
-##     will end up with 9 variables.  Now regress X1 on X2-X9 (a perfect
-##     fit).  If the package balks (singular or roundoff error messages),
-##     try X1 on X2-X8, and so on.  Most packages cannot handle more than
-##     a few polynomials.
-##     Scipy's stats.py does not seem to handle multiple linear regression
-##     The datasets X1 . . X9 are at the top of the file.
-
     def test_regressXX(self):
-        """ W.IV.B.  Regress X on X.
-
-            The constant should be exactly 0 and the regression coefficient should be 1.
-            This is a perfectly valid regression.  The program should not complain.
-        """
+        # W.IV.B.  Regress X on X.
+        # The constant should be exactly 0 and the regression coefficient should be 1.
+        # This is a perfectly valid regression.  The program should not complain.
         y = stats.linregress(X,X)
         intercept = y[1]
         r = y[2]
@@ -698,12 +617,10 @@ class TestRegression(TestCase):
 ### Need to figure out how to handle multiple linear regression.  Not obvious
 
     def test_regressZEROX(self):
-        """ W.IV.D. Regress ZERO on X.
-
-            The program should inform you that ZERO has no variance or it should
-            go ahead and compute the regression and report a correlation and
-            total sum of squares of exactly 0.
-        """
+        # W.IV.D. Regress ZERO on X.
+        # The program should inform you that ZERO has no variance or it should
+        # go ahead and compute the regression and report a correlation and
+        # total sum of squares of exactly 0.
         y = stats.linregress(X,ZERO)
         intercept = y[1]
         r = y[2]
@@ -711,45 +628,40 @@ class TestRegression(TestCase):
         assert_almost_equal(r,0.0)
 
     def test_regress_simple(self):
-        """Regress a line with sinusoidal noise."""
+        # Regress a line with sinusoidal noise.
         x = np.linspace(0, 100, 100)
         y = 0.2 * np.linspace(0, 100, 100) + 10
         y += np.sin(np.linspace(0, 20, 100))
 
         res = stats.linregress(x, y)
-        assert_almost_equal(res[4], 2.3957814497838803e-3)  # 4.3609875083149268e-3)
+        assert_almost_equal(res[4], 2.3957814497838803e-3)
 
     def test_regress_simple_onearg_rows(self):
-        """Regress a line with sinusoidal noise, with a single input of shape
-        (2, N).
-        """
+        # Regress a line w sinusoidal noise, with a single input of shape (2, N).
         x = np.linspace(0, 100, 100)
         y = 0.2 * np.linspace(0, 100, 100) + 10
         y += np.sin(np.linspace(0, 20, 100))
         rows = np.vstack((x, y))
 
         res = stats.linregress(rows)
-        assert_almost_equal(res[4], 2.3957814497838803e-3)  # 4.3609875083149268e-3)
+        assert_almost_equal(res[4], 2.3957814497838803e-3)
 
     def test_regress_simple_onearg_cols(self):
-        """Regress a line with sinusoidal noise, with a single input of shape
-        (N, 2).
-        """
         x = np.linspace(0, 100, 100)
         y = 0.2 * np.linspace(0, 100, 100) + 10
         y += np.sin(np.linspace(0, 20, 100))
         cols = np.hstack((np.expand_dims(x, 1), np.expand_dims(y, 1)))
 
         res = stats.linregress(cols)
-        assert_almost_equal(res[4], 2.3957814497838803e-3)  # 4.3609875083149268e-3)
+        assert_almost_equal(res[4], 2.3957814497838803e-3)
 
     def test_regress_shape_error(self):
-        """Check that a single input argument to linregress with wrong shape
-        results in a ValueError."""
+        # Check that a single input argument to linregress with wrong shape
+        # results in a ValueError.
         assert_raises(ValueError, stats.linregress, np.ones((3, 3)))
 
     def test_linregress(self):
-        '''compared with multivariate ols with pinv'''
+        # compared with multivariate ols with pinv
         x = np.arange(11)
         y = np.arange(5,16)
         y[[(1),(-2)]] -= 1
@@ -772,8 +684,8 @@ class TestRegression(TestCase):
 
 
 class TestHistogram(TestCase):
-    """ Tests that histogram works as it should, and keeps old behaviour
-    """
+    # Tests that histogram works as it should, and keeps old behaviour
+    #
     # what is untested:
     # - multidimensional arrays (since 'a' is ravel'd as the first line in the method)
     # - very large arrays
@@ -789,8 +701,8 @@ class TestHistogram(TestCase):
     few_values = np.array([2.0, 3.0, -1.0, 0.0], dtype=float)  # 4 values
 
     def test_simple(self):
-        """ Tests that each of the tests works as expected with default params
-        """
+        # Tests that each of the tests works as expected with default params
+        #
         # basic tests, with expected results (no weighting)
         # results taken from the previous (slower) version of histogram
         basic_tests = ((self.low_values, (np.array([1., 1., 1., 2., 2.,
@@ -815,8 +727,8 @@ class TestHistogram(TestCase):
                                     decimal=2)
 
     def test_weighting(self):
-        """ Tests that weights give expected histograms
-        """
+        # Tests that weights give expected histograms
+
         # basic tests, with expected results, given a set of weights
         # weights used (first n are used for each test, where n is len of array) (14 values)
         weights = np.array([1., 3., 4.5, 0.1, -1.0, 0.0, 0.3, 7.0, 103.2, 2, 40, 0, 0, 1])
@@ -848,8 +760,8 @@ class TestHistogram(TestCase):
                                     decimal=2)
 
     def test_reduced_bins(self):
-        """ Tests that reducing the number of bins produces expected results
-        """
+        # Tests that reducing the number of bins produces expected results
+
         # basic tests, with expected results (no weighting),
         # except number of bins is halved to 5
         # results taken from the previous (slower) version of histogram
@@ -871,8 +783,8 @@ class TestHistogram(TestCase):
                                     decimal=2)
 
     def test_increased_bins(self):
-        """ Tests that increasing the number of bins produces expected results
-        """
+        # Tests that increasing the number of bins produces expected results
+
         # basic tests, with expected results (no weighting),
         # except number of bins is double to 20
         # results taken from the previous (slower) version of histogram
@@ -926,14 +838,10 @@ def test_relfreq():
 
 
 # Utility
-
 def compare_results(res,desired):
     for i in range(len(desired)):
         assert_array_equal(res[i],desired[i])
 
-
-##################################################
-### Test for sum
 
 class TestGMean(TestCase):
 
@@ -1137,35 +1045,32 @@ class TestVariability(TestCase):
     testcase = [1,2,3,4]
 
     def test_signaltonoise(self):
-        """
-        this is not in R, so used
-        mean(testcase,axis=0)/(sqrt(var(testcase)*3/4)) """
+        # This is not in R, so used:
+        #     mean(testcase, axis=0) / (sqrt(var(testcase) * 3/4))
+
         # y = stats.signaltonoise(self.shoes[0])
         # assert_approx_equal(y,4.5709967)
         y = stats.signaltonoise(self.testcase)
         assert_approx_equal(y,2.236067977)
 
     def test_sem(self):
-        """
-        this is not in R, so used
-        sqrt(var(testcase)*3/4)/sqrt(3)
-        """
+        # This is not in R, so used:
+        #     sqrt(var(testcase)*3/4)/sqrt(3)
+
         # y = stats.sem(self.shoes[0])
         # assert_approx_equal(y,0.775177399)
         y = stats.sem(self.testcase)
         assert_approx_equal(y,0.6454972244)
 
     def test_zmap(self):
-        """
-        not in R, so tested by using
-        (testcase[i]-mean(testcase,axis=0))/sqrt(var(testcase)*3/4)
-        """
+        # not in R, so tested by using:
+        #     (testcase[i] - mean(testcase, axis=0)) / sqrt(var(testcase) * 3/4)
         y = stats.zmap(self.testcase,self.testcase)
         desired = ([-1.3416407864999, -0.44721359549996, 0.44721359549996, 1.3416407864999])
         assert_array_almost_equal(desired,y,decimal=12)
 
     def test_zmap_axis(self):
-        """Test use of 'axis' keyword in zmap."""
+        # Test use of 'axis' keyword in zmap.
         x = np.array([[0.0, 0.0, 1.0, 1.0],
                       [1.0, 1.0, 1.0, 2.0],
                       [2.0, 0.0, 2.0, 0.0]])
@@ -1188,13 +1093,9 @@ class TestVariability(TestCase):
         assert_array_almost_equal(z1, z1_expected)
 
     def test_zmap_ddof(self):
-        """Test use of 'ddof' keyword in zmap."""
+        # Test use of 'ddof' keyword in zmap.
         x = np.array([[0.0, 0.0, 1.0, 1.0],
                       [0.0, 1.0, 2.0, 3.0]])
-
-        t1 = 1.0/np.sqrt(2.0/3)
-        t2 = np.sqrt(3.)/3
-        t3 = np.sqrt(2.)
 
         z = stats.zmap(x, x, axis=1, ddof=1)
 
@@ -1204,16 +1105,14 @@ class TestVariability(TestCase):
         assert_array_almost_equal(z[1], z1_expected)
 
     def test_zscore(self):
-        """
-        not in R, so tested by using
-        (testcase[i]-mean(testcase,axis=0))/sqrt(var(testcase)*3/4)
-        """
+        # not in R, so tested by using:
+        #    (testcase[i] - mean(testcase, axis=0)) / sqrt(var(testcase) * 3/4)
         y = stats.zscore(self.testcase)
         desired = ([-1.3416407864999, -0.44721359549996, 0.44721359549996, 1.3416407864999])
         assert_array_almost_equal(desired,y,decimal=12)
 
     def test_zscore_axis(self):
-        """Test use of 'axis' keyword in zscore."""
+        # Test use of 'axis' keyword in zscore.
         x = np.array([[0.0, 0.0, 1.0, 1.0],
                       [1.0, 1.0, 1.0, 2.0],
                       [2.0, 0.0, 2.0, 0.0]])
@@ -1236,13 +1135,9 @@ class TestVariability(TestCase):
         assert_array_almost_equal(z1, z1_expected)
 
     def test_zscore_ddof(self):
-        """Test use of 'ddof' keyword in zscore."""
+        # Test use of 'ddof' keyword in zscore.
         x = np.array([[0.0, 0.0, 1.0, 1.0],
                       [0.0, 1.0, 2.0, 3.0]])
-
-        t1 = 1.0/np.sqrt(2.0/3)
-        t2 = np.sqrt(3.)/3
-        t3 = np.sqrt(2.)
 
         z = stats.zscore(x, axis=1, ddof=1)
 
@@ -1266,8 +1161,7 @@ class TestMoments(TestCase):
     testmathworks = [1.165, 0.6268, 0.0751, 0.3516, -0.6965]
 
     def test_moment(self):
-        """
-        mean((testcase-mean(testcase))**power,axis=0),axis=0))**power))"""
+        # mean((testcase-mean(testcase))**power,axis=0),axis=0))**power))
         y = stats.moment(self.testcase,1)
         assert_approx_equal(y,0.0,10)
         y = stats.moment(self.testcase,2)
@@ -1278,18 +1172,13 @@ class TestMoments(TestCase):
         assert_approx_equal(y,2.5625)
 
     def test_variation(self):
-        """
-        variation = samplestd/mean """
-##        y = stats.variation(self.shoes[0])
-##        assert_approx_equal(y,21.8770668)
+        # variation = samplestd / mean
         y = stats.variation(self.testcase)
         assert_approx_equal(y,0.44721359549996, 10)
 
     def test_skewness(self):
-        """
-        sum((testmathworks-mean(testmathworks,axis=0))**3,axis=0)/
-            ((sqrt(var(testmathworks)*4/5))**3)/5
-        """
+        # sum((testmathworks-mean(testmathworks,axis=0))**3,axis=0) /
+        #     ((sqrt(var(testmathworks)*4/5))**3)/5
         y = stats.skew(self.testmathworks)
         assert_approx_equal(y,-0.29322304336607,10)
         y = stats.skew(self.testmathworks,bias=0)
@@ -1298,18 +1187,14 @@ class TestMoments(TestCase):
         assert_approx_equal(y,0.0,10)
 
     def test_skewness_scalar(self):
-        """
-        `skew` must return a scalar for 1-dim input
-        """
+        # `skew` must return a scalar for 1-dim input
         assert_equal(stats.skew(arange(10)), 0.0)
 
     def test_kurtosis(self):
-        """
-            sum((testcase-mean(testcase,axis=0))**4,axis=0)/((sqrt(var(testcase)*3/4))**4)/4
-            sum((test2-mean(testmathworks,axis=0))**4,axis=0)/((sqrt(var(testmathworks)*4/5))**4)/5
-            Set flags for axis = 0 and
-            fisher=0 (Pearson's defn of kurtosis for compatiability with Matlab)
-        """
+        #   sum((testcase-mean(testcase,axis=0))**4,axis=0)/((sqrt(var(testcase)*3/4))**4)/4
+        #   sum((test2-mean(testmathworks,axis=0))**4,axis=0)/((sqrt(var(testmathworks)*4/5))**4)/5
+        #   Set flags for axis = 0 and
+        #   fisher=0 (Pearson's defn of kurtosis for compatiability with Matlab)
         y = stats.kurtosis(self.testmathworks,0,fisher=0,bias=1)
         assert_approx_equal(y, 2.1658856802973,10)
 
@@ -1336,8 +1221,6 @@ class TestThreshold(TestCase):
                            [-1,2,3,0,0,-1,-2])
         assert_array_equal(stats.threshold(a,2,4,0),
                            [0,2,3,4,0,0,0])
-
-# Hypothesis test tests
 
 
 class TestStudentTest(TestCase):
@@ -1458,127 +1341,332 @@ def test_percentileofscore():
                    score, kind=kind), result
 
 
-def check_chisquare(f_obs, f_exp, ddof, axis, expected_chi2):
-    f_obs = np.asarray(f_obs)
-    if axis is None:
-        num_obs = f_obs.size
-    else:
-        if axis == 'no':
-            use_axis = 0
+PowerDivCase = namedtuple('Case', ['f_obs', 'f_exp', 'ddof', 'axis',
+                                   'chi2',     # Pearson's
+                                   'log',      # G-test (log-likelihood)
+                                   'mod_log',  # Modified log-likelihood
+                                   'cr',       # Cressie-Read (lambda=2/3)
+                                   ])
+
+# The details of the first two elements in power_div_1d_cases are used
+# in a test in TestPowerDivergence.  Check that code before making
+# any changes here.
+power_div_1d_cases = [
+    # Use the default f_exp.
+    PowerDivCase(f_obs=[4, 8, 12, 8], f_exp=None, ddof=0, axis=None,
+                 chi2=4,
+                 log=2*(4*np.log(4/8) + 12*np.log(12/8)),
+                 mod_log=2*(8*np.log(8/4) + 8*np.log(8/12)),
+                 cr=(4*((4/8)**(2/3) - 1) + 12*((12/8)**(2/3) - 1))/(5/9)),
+    # Give a non-uniform f_exp.
+    PowerDivCase(f_obs=[4, 8, 12, 8], f_exp=[2, 16, 12, 2], ddof=0, axis=None,
+                 chi2=24,
+                 log=2*(4*np.log(4/2) + 8*np.log(8/16) + 8*np.log(8/2)),
+                 mod_log=2*(2*np.log(2/4) + 16*np.log(16/8) + 2*np.log(2/8)),
+                 cr=(4*((4/2)**(2/3) - 1) + 8*((8/16)**(2/3) - 1) +
+                     8*((8/2)**(2/3) - 1))/(5/9)),
+    # f_exp is a scalar.
+    PowerDivCase(f_obs=[4, 8, 12, 8], f_exp=8, ddof=0, axis=None,
+                 chi2=4,
+                 log=2*(4*np.log(4/8) + 12*np.log(12/8)),
+                 mod_log=2*(8*np.log(8/4) + 8*np.log(8/12)),
+                 cr=(4*((4/8)**(2/3) - 1) + 12*((12/8)**(2/3) - 1))/(5/9)),
+    # f_exp equal to f_obs.
+    PowerDivCase(f_obs=[3, 5, 7, 9], f_exp=[3, 5, 7, 9], ddof=0, axis=0,
+                 chi2=0, log=0, mod_log=0, cr=0),
+]
+
+
+power_div_empty_cases = [
+    # Shape is (0,)--a data set with length 0.  The computed
+    # test statistic should be 0.
+    PowerDivCase(f_obs=[],
+                 f_exp=None, ddof=0, axis=0,
+                 chi2=0, log=0, mod_log=0, cr=0),
+    # Shape is (0, 3).  This is 3 data sets, but each data set has
+    # length 0, so the computed test statistic should be [0, 0, 0].
+    PowerDivCase(f_obs=np.array([[],[],[]]).T,
+                 f_exp=None, ddof=0, axis=0,
+                 chi2=[0, 0, 0],
+                 log=[0, 0, 0],
+                 mod_log=[0, 0, 0],
+                 cr=[0, 0, 0]),
+    # Shape is (3, 0).  This represents an empty collection of
+    # data sets in which each data set has length 3.  The test
+    # statistic should be an empty array.
+    PowerDivCase(f_obs=np.array([[],[],[]]),
+                 f_exp=None, ddof=0, axis=0,
+                 chi2=[],
+                 log=[],
+                 mod_log=[],
+                 cr=[]),
+]
+
+
+class TestPowerDivergence(object):
+
+    def check_power_divergence(self, f_obs, f_exp, ddof, axis, lambda_,
+                               expected_stat):
+        f_obs = np.asarray(f_obs)
+        if axis is None:
+            num_obs = f_obs.size
         else:
-            use_axis = axis
-        b = np.broadcast(f_obs, f_exp)
-        num_obs = b.shape[use_axis]
+            b = np.broadcast(f_obs, f_exp)
+            num_obs = b.shape[axis]
+        stat, p = stats.power_divergence(f_obs=f_obs, f_exp=f_exp, ddof=ddof,
+                                         axis=axis, lambda_=lambda_)
+        assert_allclose(stat, expected_stat)
 
-    if axis == 'no':
-        chi2, p = stats.chisquare(f_obs, f_exp=f_exp, ddof=ddof)
-    else:
-        chi2, p = stats.chisquare(f_obs, f_exp=f_exp, ddof=ddof, axis=axis)
-    assert_array_equal(chi2, expected_chi2)
+        if lambda_ == 1 or lambda_ == "pearson":
+            # Also test stats.chisquare.
+            stat, p = stats.chisquare(f_obs=f_obs, f_exp=f_exp, ddof=ddof,
+                                      axis=axis)
+            assert_allclose(stat, expected_stat)
 
-    ddof = np.asarray(ddof)
-    expected_p = stats.chisqprob(expected_chi2, num_obs - 1 - ddof)
-    assert_array_equal(p, expected_p)
+        ddof = np.asarray(ddof)
+        expected_p = stats.chisqprob(expected_stat, num_obs - 1 - ddof)
+        assert_allclose(p, expected_p)
 
+    def test_basic(self):
+        for case in power_div_1d_cases:
+            yield (self.check_power_divergence,
+                   case.f_obs, case.f_exp, case.ddof, case.axis,
+                   None, case.chi2)
+            yield (self.check_power_divergence,
+                   case.f_obs, case.f_exp, case.ddof, case.axis,
+                   "pearson", case.chi2)
+            yield (self.check_power_divergence,
+                   case.f_obs, case.f_exp, case.ddof, case.axis,
+                   1, case.chi2)
+            yield (self.check_power_divergence,
+                   case.f_obs, case.f_exp, case.ddof, case.axis,
+                   "log-likelihood", case.log)
+            yield (self.check_power_divergence,
+                   case.f_obs, case.f_exp, case.ddof, case.axis,
+                   "mod-log-likelihood", case.mod_log)
+            yield (self.check_power_divergence,
+                   case.f_obs, case.f_exp, case.ddof, case.axis,
+                   "cressie-read", case.cr)
+            yield (self.check_power_divergence,
+                   case.f_obs, case.f_exp, case.ddof, case.axis,
+                   2/3, case.cr)
 
-def test_chisquare():
-    # The data sets here are chosen so that the chi2 statistic
-    # can be calculated exactly, so a test for equality (rather than
-    # being numerically close) can be used.
-    Case = namedtuple('Case', ['f_obs', 'f_exp', 'ddof', 'axis',
-                                'expected_chi2'])
-    empty = np.array([[],[],[]])
-    data2da = np.array([[1, 4],
-                        [2, 8],
-                        [3, 12],
-                        [2, 8]])
-    data2db = np.array([[1, 2, 3, 2],
-                        [3, 2, 3, 0]])
-
-    # These cases use the default axis=0.
-    cases0 = [
-        # simple case, 1 data set:
-        Case(f_obs=[1,2,3,2], f_exp=None, ddof=0, axis=0,
-             expected_chi2=1.0),
-        # two simple data sets
-        Case(f_obs=data2da, f_exp=None, ddof=0, axis=0,
-             expected_chi2=[1.0, 4.0]),
-        # Edge case: one data set with length 0.
-        Case(f_obs=[], ddof=0, f_exp=None, axis=0, expected_chi2=0.0),
-        # Edge case: no data sets (data has shape (3,0)).
-        Case(f_obs=empty, f_exp=None, ddof=0, axis=0, expected_chi2=[]),
-        # Edge case: data has shape (0, 3) (3 data sets,
-        # but each has length 0).
-        Case(f_obs=empty.T, f_exp=None, ddof=0, axis=0,
-             expected_chi2=[0.0, 0.0, 0.0]),
-        # simple case, with scalar f_exp.
-        Case(f_obs=[1, 2, 3, 2], f_exp=2, ddof=0, axis=0,
-             expected_chi2=1.0),
-        # simple case with vector f_exp (uniform).
-        Case(f_obs=[1, 2, 3, 2], f_exp=[2, 2, 2, 2], ddof=0, axis=0,
-             expected_chi2=1.0),
-        # simple case with vector f_exp equal to f_obs.
-        Case(f_obs=[1, 2, 3, 2], f_exp=[1, 2, 3, 2], ddof=0, axis=0,
-             expected_chi2=0.0),
-        # 2-D data
-        Case(f_obs=data2db.T, f_exp=None, ddof=0, axis=0,
-             expected_chi2=[1.0, 3.0]),
-        Case(f_obs=data2db.T, f_exp=None, ddof=1, axis=0,
-             expected_chi2=[1.0, 3.0]),
-        # 2-D data, 1-D ddof
-        Case(f_obs=data2db.T, f_exp=None, ddof=[0,1], axis=0,
-             expected_chi2=[1.0, 3.0]),
-    ]
-    # All the cases in `cases0` have axis=0, which is the default value
-    # for the chisquare function.  Here we check each case twice, once
-    # in which the argument is not passed to chisquare (indicated by
-    # using the value 'no' in the call to check_chisquare), and again
-    # with the axis argument explicitly set to 0.
-    for case in cases0:
-        yield (check_chisquare, case.f_obs, case.f_exp, case.ddof, 'no',
-               case.expected_chi2)
-    for case in cases0:
-        yield (check_chisquare, case.f_obs, case.f_exp, case.ddof, 0,
-               case.expected_chi2)
-
-    # A few more cases, testing axis != 0 and basic broadcasting of
-    # f_obs and f_exp.
-    cases1 = [
-        Case(f_obs=data2da.T, f_exp=None, ddof=0, axis=1,
-             expected_chi2=[1.0, 4.0]),
-        Case(f_obs=data2db, f_exp=None, ddof=0, axis=None,
-             expected_chi2=[4.0]),
-        Case(f_obs=data2db.T, f_exp=None, ddof=0, axis=None,
-             expected_chi2=[4.0]),
-        Case(f_obs=[1,2,3,2], f_exp=[[2, 2, 3, 1],[2, 2, 2, 2]], ddof=0, axis=1,
-             expected_chi2=[1.5, 1.0]),
-    ]
-
-    for case in cases1:
-        yield (check_chisquare, case.f_obs, case.f_exp, case.ddof, case.axis,
-               case.expected_chi2)
+    def test_basic_masked(self):
+        for case in power_div_1d_cases:
+            mobs = np.ma.array(case.f_obs)
+            yield (self.check_power_divergence,
+                   mobs, case.f_exp, case.ddof, case.axis,
+                   None, case.chi2)
+            yield (self.check_power_divergence,
+                   mobs, case.f_exp, case.ddof, case.axis,
+                   "pearson", case.chi2)
+            yield (self.check_power_divergence,
+                   mobs, case.f_exp, case.ddof, case.axis,
+                   1, case.chi2)
+            yield (self.check_power_divergence,
+                   mobs, case.f_exp, case.ddof, case.axis,
+                   "log-likelihood", case.log)
+            yield (self.check_power_divergence,
+                   mobs, case.f_exp, case.ddof, case.axis,
+                   "mod-log-likelihood", case.mod_log)
+            yield (self.check_power_divergence,
+                   mobs, case.f_exp, case.ddof, case.axis,
+                   "cressie-read", case.cr)
+            yield (self.check_power_divergence,
+                   mobs, case.f_exp, case.ddof, case.axis,
+                   2/3, case.cr)
 
 
-def test_chisquare_ddof_broadcasting():
-    # Test that ddof broadcasts correctly.
+    def test_axis(self):
+        case0 = power_div_1d_cases[0]
+        case1 = power_div_1d_cases[1]
+        f_obs = np.vstack((case0.f_obs, case1.f_obs))
+        f_exp = np.vstack((np.ones_like(case0.f_obs)*np.mean(case0.f_obs),
+                           case1.f_exp))
+        # Check the four computational code paths in power_divergence
+        # using a 2D array with axis=1.
+        yield (self.check_power_divergence,
+               f_obs, f_exp, 0, 1,
+               "pearson", [case0.chi2, case1.chi2])
+        yield (self.check_power_divergence,
+               f_obs, f_exp, 0, 1,
+               "log-likelihood", [case0.log, case1.log])
+        yield (self.check_power_divergence,
+               f_obs, f_exp, 0, 1,
+               "mod-log-likelihood", [case0.mod_log, case1.mod_log])
+        yield (self.check_power_divergence,
+               f_obs, f_exp, 0, 1,
+               "cressie-read", [case0.cr, case1.cr])
+        # Reshape case0.f_obs to shape (2,2), and use axis=None.
+        # The result should be the same.
+        yield (self.check_power_divergence,
+               np.array(case0.f_obs).reshape(2, 2), None, 0, None,
+               "pearson", case0.chi2)
 
-    # obs has shape (4, 2).  We'll use the default axis=0, so chi2
-    # will have shape (2,).
-    obs = np.array([[1, 2, 3, 2], [3, 2, 2, 5]]).T
+    def test_ddof_broadcasting(self):
+        # Test that ddof broadcasts correctly.
+        # ddof does not affect the test statistic.  It is broadcast
+        # with the computed test statistic for the computation of
+        # the p value.
 
-    # ddof has shape (2, 1).  This is broadcast with chi2, so p will
-    # have shape (2,2).
-    ddof = np.array([[0], [1]])
+        case0 = power_div_1d_cases[0]
+        case1 = power_div_1d_cases[1]
+        # Create 4x2 arrays of observed and expected frequencies.
+        f_obs = np.vstack((case0.f_obs, case1.f_obs)).T
+        f_exp = np.vstack((np.ones_like(case0.f_obs)*np.mean(case0.f_obs),
+                           case1.f_exp)).T
 
-    chi2, p = stats.chisquare(obs, ddof=ddof)
-    assert_array_equal(chi2, [1.0, 2.0])
+        expected_chi2 = [case0.chi2, case1.chi2]
 
-    chi20, p0 = stats.chisquare(obs, ddof=ddof[0,0])
-    assert_array_equal(chi20, [1.0, 2.0])
+        # ddof has shape (2, 1).  This is broadcast with the computed
+        # statistic, so p will have shape (2,2).
+        ddof = np.array([[0], [1]])
 
-    chi21, p1 = stats.chisquare(obs, ddof=ddof[1,0])
-    assert_array_equal(chi21, [1.0, 2.0])
-    assert_array_equal(p, np.vstack((p0, p1)))
+        stat, p = stats.power_divergence(f_obs, f_exp, ddof=ddof)
+        assert_allclose(stat, expected_chi2)
+
+        # Compute the p values separately, passing in scalars for ddof.
+        stat0, p0 = stats.power_divergence(f_obs, f_exp, ddof=ddof[0,0])
+        stat1, p1 = stats.power_divergence(f_obs, f_exp, ddof=ddof[1,0])
+
+        assert_array_equal(p, np.vstack((p0, p1)))
+
+    def test_empty_cases(self):
+        for case in power_div_empty_cases:
+            yield (self.check_power_divergence,
+                   case.f_obs, case.f_exp, case.ddof, case.axis,
+                   "pearson", case.chi2)
+            yield (self.check_power_divergence,
+                   case.f_obs, case.f_exp, case.ddof, case.axis,
+                   "log-likelihood", case.log)
+            yield (self.check_power_divergence,
+                   case.f_obs, case.f_exp, case.ddof, case.axis,
+                   "mod-log-likelihood", case.mod_log)
+            yield (self.check_power_divergence,
+                   case.f_obs, case.f_exp, case.ddof, case.axis,
+                   "cressie-read", case.cr)
+
+
+def test_chisquare_masked_arrays():
+    # Test masked arrays.
+    obs = np.array([[8, 8, 16, 32, -1], [-1, -1, 3, 4, 5]]).T
+    mask = np.array([[0, 0, 0, 0, 1], [1, 1, 0, 0, 0]]).T
+    mobs = np.ma.masked_array(obs, mask)
+    expected_chisq = np.array([24.0, 0.5])
+    expected_g = np.array([2*(2*8*np.log(0.5) + 32*np.log(2.0)),
+                           2*(3*np.log(0.75) + 5*np.log(1.25))])
+
+    chisq, p = stats.chisquare(mobs)
+    mat.assert_array_equal(chisq, expected_chisq)
+    mat.assert_array_almost_equal(p, stats.chisqprob(expected_chisq,
+                                                     mobs.count(axis=0) - 1))
+
+    g, p = stats.power_divergence(mobs, lambda_='log-likelihood')
+    mat.assert_array_equal(g, expected_g)
+    mat.assert_array_almost_equal(p, stats.chisqprob(expected_g,
+                                                     mobs.count(axis=0) - 1))
+
+    chisq, p = stats.chisquare(mobs.T, axis=1)
+    mat.assert_array_equal(chisq, expected_chisq)
+    mat.assert_array_almost_equal(p,
+                                  stats.chisqprob(expected_chisq,
+                                                  mobs.T.count(axis=1) - 1))
+
+    g, p = stats.power_divergence(mobs.T, axis=1, lambda_="log-likelihood")
+    mat.assert_array_equal(g, expected_g)
+    mat.assert_array_almost_equal(p, stats.chisqprob(expected_g,
+                                                     mobs.count(axis=0) - 1))
+
+    obs1 = np.ma.array([3, 5, 6, 99, 10], mask=[0, 0, 0, 1, 0])
+    exp1 = np.ma.array([2, 4, 8, 10, 99], mask=[0, 0, 0, 0, 1])
+    chi2, p = stats.chisquare(obs1, f_exp=exp1)
+    # Because of the mask at index 3 of obs1 and at index 4 of exp1,
+    # only the first three elements are included in the calculation
+    # of the statistic.
+    mat.assert_array_equal(chi2, 1/2 + 1/4 + 4/8)
+
+    # When axis=None, the two values should have type np.float64.
+    chisq, p = stats.chisquare(np.ma.array([1,2,3]), axis=None)
+    assert_(isinstance(chisq, np.float64))
+    assert_(isinstance(p, np.float64))
+    assert_equal(chisq, 1.0)
+    assert_almost_equal(p, stats.chisqprob(1.0, 2))
+
+    # Empty arrays:
+    # A data set with length 0 returns a masked scalar.
+    chisq, p = stats.chisquare(np.ma.array([]))
+    assert_(isinstance(chisq, np.ma.MaskedArray))
+    assert_equal(chisq.shape, ())
+    assert_(chisq.mask)
+
+    empty3 = np.ma.array([[],[],[]])
+
+    # empty3 is a collection of 0 data sets (whose lengths would be 3, if
+    # there were any), so the return value is an array with length 0.
+    chisq, p = stats.chisquare(empty3)
+    assert_(isinstance(chisq, np.ma.MaskedArray))
+    mat.assert_array_equal(chisq, [])
+
+    # empty3.T is an array containing 3 data sets, each with length 0,
+    # so an array of size (3,) is returned, with all values masked.
+    chisq, p = stats.chisquare(empty3.T)
+    assert_(isinstance(chisq, np.ma.MaskedArray))
+    assert_equal(chisq.shape, (3,))
+    assert_(np.all(chisq.mask))
+
+
+def test_power_divergence_against_cressie_read_data():
+    # Test stats.power_divergence against tables 4 and 5 from
+    # Cressie and Read, "Multimonial Goodness-of-Fit Tests",
+    # J. R. Statist. Soc. B (1984), Vol 46, No. 3, pp. 440-464.
+    # This tests the calculation for several values of lambda.
+
+    # `table4` holds just the second and third columns from Table 4.
+    table4 = np.array([
+        # observed, expected,
+        15, 15.171,
+        11, 13.952,
+        14, 12.831,
+        17, 11.800,
+         5, 10.852,
+        11, 9.9796,
+        10, 9.1777,
+         4, 8.4402,
+         8, 7.7620,
+        10, 7.1383,
+         7, 6.5647,
+         9, 6.0371,
+        11, 5.5520,
+         3, 5.1059,
+         6, 4.6956,
+         1, 4.3183,
+         1, 3.9713,
+         4, 3.6522,
+        ]).reshape(-1, 2)
+    table5 = np.array([
+        # lambda, statistic
+        -10.0,  72.2e3,
+         -5.0,  28.9e1,
+         -3.0,  65.6,
+         -2.0,  40.6,
+         -1.5,  34.0,
+         -1.0,  29.5,
+         -0.5,  26.5,
+          0.0,  24.6,
+          0.5,  23.4,
+          0.67, 23.1,
+          1.0,  22.7,
+          1.5,  22.6,
+          2.0,  22.9,
+          3.0,  24.8,
+          5.0,  35.5,
+         10.0,  21.4e1,
+        ]).reshape(-1, 2)
+
+    for lambda_, expected_stat in table5:
+        stat, p = stats.power_divergence(table4[:,0], table4[:,1],
+                                         lambda_=lambda_)
+        assert_allclose(stat, expected_stat, rtol=5e-3)
 
 
 def test_friedmanchisquare():
@@ -1608,16 +1696,22 @@ def test_friedmanchisquare():
           array([4.9,7.6,5.5,2.8,8.4]),
           array([8.8,8.9,8.1,3.3,9.1])]
 
-    assert_array_almost_equal(stats.friedmanchisquare(x1[0],x1[1],x1[2],x1[3]),(10.2283464566929, 0.0167215803284414))
-    assert_array_almost_equal(stats.friedmanchisquare(x2[0],x2[1],x2[2],x2[3]),(18.9428571428571, 0.000280938375189499))
-    assert_array_almost_equal(stats.friedmanchisquare(x3[0],x3[1],x3[2],x3[3]),(10.68, 0.0135882729582176))
+    assert_array_almost_equal(stats.friedmanchisquare(x1[0],x1[1],x1[2],x1[3]),
+                              (10.2283464566929, 0.0167215803284414))
+    assert_array_almost_equal(stats.friedmanchisquare(x2[0],x2[1],x2[2],x2[3]),
+                              (18.9428571428571, 0.000280938375189499))
+    assert_array_almost_equal(stats.friedmanchisquare(x3[0],x3[1],x3[2],x3[3]),
+                              (10.68, 0.0135882729582176))
     np.testing.assert_raises(ValueError, stats.friedmanchisquare,x3[0],x3[1])
 
     # test using mstats
-    assert_array_almost_equal(stats.mstats.friedmanchisquare(x1[0],x1[1],x1[2],x1[3]),(10.2283464566929, 0.0167215803284414))
+    assert_array_almost_equal(stats.mstats.friedmanchisquare(x1[0],x1[1],x1[2],x1[3]),
+                              (10.2283464566929, 0.0167215803284414))
     # the following fails
-    # assert_array_almost_equal(stats.mstats.friedmanchisquare(x2[0],x2[1],x2[2],x2[3]),(18.9428571428571, 0.000280938375189499))
-    assert_array_almost_equal(stats.mstats.friedmanchisquare(x3[0],x3[1],x3[2],x3[3]),(10.68, 0.0135882729582176))
+    # assert_array_almost_equal(stats.mstats.friedmanchisquare(x2[0],x2[1],x2[2],x2[3]),
+    #                           (18.9428571428571, 0.000280938375189499))
+    assert_array_almost_equal(stats.mstats.friedmanchisquare(x3[0],x3[1],x3[2],x3[3]),
+                              (10.68, 0.0135882729582176))
     np.testing.assert_raises(ValueError,stats.mstats.friedmanchisquare,x3[0],x3[1])
 
 
@@ -1770,7 +1864,6 @@ def test_ttest_ind():
 
 
 def test_ttest_ind_with_uneq_var():
-
     # check vs. R
     a = (1, 2, 3)
     b = (1.1, 2.9, 4.2)
@@ -1937,19 +2030,15 @@ class TestJarqueBera(TestCase):
 
 
 def test_skewtest_too_few_samples():
-    """Regression test for ticket #1492.
-
-    skewtest requires at least 8 samples; 7 should raise a ValueError.
-    """
+    # Regression test for ticket #1492.
+    # skewtest requires at least 8 samples; 7 should raise a ValueError.
     x = np.arange(7.0)
     assert_raises(ValueError, stats.skewtest, x)
 
 
 def test_kurtosistest_too_few_samples():
-    """Regression test for ticket #1425.
-
-    kurtosistest requires at least 5 samples; 4 should raise a ValueError.
-    """
+    # Regression test for ticket #1425.
+    # kurtosistest requires at least 5 samples; 4 should raise a ValueError.
     x = np.arange(4.0)
     assert_raises(ValueError, stats.kurtosistest, x)
 
@@ -1999,36 +2088,69 @@ def test_pointbiserial():
 
 
 def test_obrientransform():
-    # this is a regression test to check np.var replacement
-    # I didn't separately verigy the numbers
+    # A couple tests calculated by hand.
+    x1 = np.array([0, 2, 4])
+    t1 = stats.obrientransform(x1)
+    expected = [7, -2, 7]
+    assert_allclose(t1[0], expected)
+
+    x2 = np.array([0, 3, 6, 9])
+    t2 = stats.obrientransform(x2)
+    expected = np.array([30, 0, 0, 30])
+    assert_allclose(t2[0], expected)
+
+    # Test two arguments.
+    a, b = stats.obrientransform(x1, x2)
+    assert_equal(a, t1[0])
+    assert_equal(b, t2[0])
+
+    # Test three arguments.
+    a, b, c = stats.obrientransform(x1, x2, x1)
+    assert_equal(a, t1[0])
+    assert_equal(b, t2[0])
+    assert_equal(c, t1[0])
+
+    # This is a regression test to check np.var replacement.
+    # The author of this test didn't separately verify the numbers.
     x1 = np.arange(5)
     result = np.array(
       [[5.41666667, 1.04166667, -0.41666667, 1.04166667, 5.41666667],
        [21.66666667, 4.16666667, -1.66666667, 4.16666667, 21.66666667]])
     assert_array_almost_equal(stats.obrientransform(x1, 2*x1), result, decimal=8)
 
+    # Example from "O'Brien Test for Homogeneity of Variance"
+    # by Herve Abdi.
+    values = range(5, 11)
+    reps = np.array([5, 11, 9, 3, 2, 2])
+    data = np.repeat(values, reps)
+    transformed_values = np.array([3.1828, 0.5591, 0.0344,
+                                   1.6086, 5.2817, 11.0538])
+    expected = np.repeat(transformed_values, reps)
+    result = stats.obrientransform(data)
+    assert_array_almost_equal(result[0], expected, decimal=4)
+
 
 class HarMeanTestCase:
     def test_1dlist(self):
-        ''' Test a 1d list'''
+        #  Test a 1d list
         a = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
         b = 34.1417152147
         self.do(a, b)
 
     def test_1darray(self):
-        ''' Test a 1d array'''
+        #  Test a 1d array
         a = np.array([10, 20, 30, 40, 50, 60, 70, 80, 90, 100])
         b = 34.1417152147
         self.do(a, b)
 
     def test_1dma(self):
-        ''' Test a 1d masked array'''
+        #  Test a 1d masked array
         a = np.ma.array([10, 20, 30, 40, 50, 60, 70, 80, 90, 100])
         b = 34.1417152147
         self.do(a, b)
 
     def test_1dmavalue(self):
-        ''' Test a 1d masked array with a masked value'''
+        #  Test a 1d masked array with a masked value
         a = np.ma.array([10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
                       mask=[0,0,0,0,0,0,0,0,0,1])
         b = 31.8137186141
@@ -2036,51 +2158,46 @@ class HarMeanTestCase:
 
     # Note the next tests use axis=None as default, not axis=0
     def test_2dlist(self):
-        ''' Test a 2d list'''
+        #  Test a 2d list
         a = [[10, 20, 30, 40], [50, 60, 70, 80], [90, 100, 110, 120]]
         b = 38.6696271841
         self.do(a, b)
 
     def test_2darray(self):
-        ''' Test a 2d array'''
+        #  Test a 2d array
         a = [[10, 20, 30, 40], [50, 60, 70, 80], [90, 100, 110, 120]]
         b = 38.6696271841
         self.do(np.array(a), b)
 
     def test_2dma(self):
-        ''' Test a 2d masked array'''
+        #  Test a 2d masked array
         a = [[10, 20, 30, 40], [50, 60, 70, 80], [90, 100, 110, 120]]
         b = 38.6696271841
         self.do(np.ma.array(a), b)
 
     def test_2daxis0(self):
-        ''' Test a 2d list with axis=0'''
+        #  Test a 2d list with axis=0
         a = [[10, 20, 30, 40], [50, 60, 70, 80], [90, 100, 110, 120]]
         b = np.array([22.88135593, 39.13043478, 52.90076336, 65.45454545])
         self.do(a, b, axis=0)
 
     def test_2daxis1(self):
-        ''' Test a 2d list with axis=1'''
+        #  Test a 2d list with axis=1
         a = [[10, 20, 30, 40], [50, 60, 70, 80], [90, 100, 110, 120]]
         b = np.array([19.2, 63.03939962, 103.80078637])
         self.do(a, b, axis=1)
 
     def test_2dmatrixdaxis0(self):
-        ''' Test a 2d list with axis=0'''
+        #  Test a 2d list with axis=0
         a = [[10, 20, 30, 40], [50, 60, 70, 80], [90, 100, 110, 120]]
         b = np.matrix([[22.88135593, 39.13043478, 52.90076336, 65.45454545]])
         self.do(np.matrix(a), b, axis=0)
 
     def test_2dmatrixaxis1(self):
-        ''' Test a 2d list with axis=1'''
+        #  Test a 2d list with axis=1
         a = [[10, 20, 30, 40], [50, 60, 70, 80], [90, 100, 110, 120]]
         b = np.matrix([[19.2, 63.03939962, 103.80078637]]).T
         self.do(np.matrix(a), b, axis=1)
-##    def test_dtype(self):
-##        ''' Test a 1d list with a new dtype'''
-##        a = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
-##        b = 34.1417152147
-##        self.do(a, b, dtype=np.float128)  # does not work on Win32
 
 
 class TestHarMean(HarMeanTestCase, TestCase):
@@ -2092,80 +2209,74 @@ class TestHarMean(HarMeanTestCase, TestCase):
 
 class GeoMeanTestCase:
     def test_1dlist(self):
-        ''' Test a 1d list'''
+        #  Test a 1d list
         a = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
         b = 45.2872868812
         self.do(a, b)
 
     def test_1darray(self):
-        ''' Test a 1d array'''
+        #  Test a 1d array
         a = np.array([10, 20, 30, 40, 50, 60, 70, 80, 90, 100])
         b = 45.2872868812
         self.do(a, b)
 
     def test_1dma(self):
-        ''' Test a 1d masked array'''
+        #  Test a 1d masked array
         a = np.ma.array([10, 20, 30, 40, 50, 60, 70, 80, 90, 100])
         b = 45.2872868812
         self.do(a, b)
 
     def test_1dmavalue(self):
-        ''' Test a 1d masked array with a masked value'''
+        #  Test a 1d masked array with a masked value
         a = np.ma.array([10, 20, 30, 40, 50, 60, 70, 80, 90, 100], mask=[0,0,0,0,0,0,0,0,0,1])
         b = 41.4716627439
         self.do(a, b)
 
     # Note the next tests use axis=None as default, not axis=0
     def test_2dlist(self):
-        ''' Test a 2d list'''
+        #  Test a 2d list
         a = [[10, 20, 30, 40], [50, 60, 70, 80], [90, 100, 110, 120]]
         b = 52.8885199
         self.do(a, b)
 
     def test_2darray(self):
-        ''' Test a 2d array'''
+        #  Test a 2d array
         a = [[10, 20, 30, 40], [50, 60, 70, 80], [90, 100, 110, 120]]
         b = 52.8885199
         self.do(np.array(a), b)
 
     def test_2dma(self):
-        ''' Test a 2d masked array'''
+        #  Test a 2d masked array
         a = [[10, 20, 30, 40], [50, 60, 70, 80], [90, 100, 110, 120]]
         b = 52.8885199
         self.do(np.ma.array(a), b)
 
     def test_2daxis0(self):
-        ''' Test a 2d list with axis=0'''
+        #  Test a 2d list with axis=0
         a = [[10, 20, 30, 40], [50, 60, 70, 80], [90, 100, 110, 120]]
         b = np.array([35.56893304, 49.32424149, 61.3579244, 72.68482371])
         self.do(a, b, axis=0)
 
     def test_2daxis1(self):
-        ''' Test a 2d list with axis=1'''
+        #  Test a 2d list with axis=1
         a = [[10, 20, 30, 40], [50, 60, 70, 80], [90, 100, 110, 120]]
         b = np.array([22.13363839, 64.02171746, 104.40086817])
         self.do(a, b, axis=1)
 
     def test_2dmatrixdaxis0(self):
-        ''' Test a 2d list with axis=0'''
+        #  Test a 2d list with axis=0
         a = [[10, 20, 30, 40], [50, 60, 70, 80], [90, 100, 110, 120]]
         b = np.matrix([[35.56893304, 49.32424149, 61.3579244, 72.68482371]])
         self.do(np.matrix(a), b, axis=0)
 
     def test_2dmatrixaxis1(self):
-        ''' Test a 2d list with axis=1'''
+        #  Test a 2d list with axis=1
         a = [[10, 20, 30, 40], [50, 60, 70, 80], [90, 100, 110, 120]]
         b = np.matrix([[22.13363839, 64.02171746, 104.40086817]]).T
         self.do(np.matrix(a), b, axis=1)
 
-##    def test_dtype(self):
-##        ''' Test a 1d list with a new dtype'''
-##        a = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
-##        b = 45.2872868812
-##        self.do(a, b, dtype=np.float128)  # does not exist on win32
-
     def test_1dlist0(self):
-        ''' Test a 1d list with zero element'''
+        #  Test a 1d list with zero element
         a = [10, 20, 30, 40, 50, 60, 70, 80, 90, 0]
         b = 0.0  # due to exp(-inf)=0
         olderr = np.seterr(all='ignore')
@@ -2175,7 +2286,7 @@ class GeoMeanTestCase:
             np.seterr(**olderr)
 
     def test_1darray0(self):
-        ''' Test a 1d array with zero element'''
+        #  Test a 1d array with zero element
         a = np.array([10, 20, 30, 40, 50, 60, 70, 80, 90, 0])
         b = 0.0  # due to exp(-inf)=0
         olderr = np.seterr(all='ignore')
@@ -2185,7 +2296,7 @@ class GeoMeanTestCase:
             np.seterr(**olderr)
 
     def test_1dma0(self):
-        ''' Test a 1d masked array with zero element'''
+        #  Test a 1d masked array with zero element
         a = np.ma.array([10, 20, 30, 40, 50, 60, 70, 80, 90, 0])
         b = 41.4716627439
         olderr = np.seterr(all='ignore')
@@ -2195,7 +2306,7 @@ class GeoMeanTestCase:
             np.seterr(**olderr)
 
     def test_1dmainf(self):
-        ''' Test a 1d masked array with negative element'''
+        #  Test a 1d masked array with negative element
         a = np.ma.array([10, 20, 30, 40, 50, 60, 70, 80, 90, -1])
         b = 41.4716627439
         olderr = np.seterr(all='ignore')
@@ -2300,12 +2411,12 @@ class TestSigamClip(object):
 class TestFOneWay(TestCase):
 
     def test_trivial(self):
-        """A trivial test of stats.f_oneway, with F=0."""
+        # A trivial test of stats.f_oneway, with F=0.
         F, p = stats.f_oneway([0,2], [0,2])
         assert_equal(F, 0.0)
 
     def test_basic(self):
-        """A test of stats.f_oneway, with F=2."""
+        # A test of stats.f_oneway, with F=2.
         F, p = stats.f_oneway([0,2], [2,4])
         # Despite being a floating point calculation, this data should
         # result in F being exactly 2.0.
@@ -2315,7 +2426,6 @@ class TestFOneWay(TestCase):
 class TestKruskal(TestCase):
 
     def test_simple(self):
-        """A really simple case for stats.kruskal"""
         x = [1]
         y = [2]
         h, p = stats.kruskal(x, y)
@@ -2326,7 +2436,6 @@ class TestKruskal(TestCase):
         assert_approx_equal(p, stats.chisqprob(h, 1))
 
     def test_basic(self):
-        """A basic test, with no ties."""
         x = [1, 3, 5, 7, 9]
         y = [2, 4, 6, 8, 10]
         h, p = stats.kruskal(x, y)
@@ -2337,7 +2446,6 @@ class TestKruskal(TestCase):
         assert_approx_equal(p, stats.chisqprob(3./11, 1))
 
     def test_simple_tie(self):
-        """A simple case with a tie."""
         x = [1]
         y = [1, 2]
         h_uncorr = 1.5**2 + 2*2.25**2 - 12
@@ -2349,7 +2457,6 @@ class TestKruskal(TestCase):
         assert_equal(h, expected)
 
     def test_another_tie(self):
-        """Another test of stats.kruskal with a tie."""
         x = [1, 1, 1, 2]
         y = [2, 2, 2, 2]
         h_uncorr = (12. / 8. / 9.) * 4 * (3**2 + 6**2) - 3 * 9
@@ -2359,7 +2466,7 @@ class TestKruskal(TestCase):
         assert_approx_equal(h, expected)
 
     def test_three_groups(self):
-        """A test of stats.kruskal with three groups, with ties."""
+        # A test of stats.kruskal with three groups, with ties.
         x = [1, 1, 1]
         y = [2, 2, 2]
         z = [2, 2]
